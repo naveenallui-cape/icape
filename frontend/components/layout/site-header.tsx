@@ -7,6 +7,7 @@ import { ChevronDown, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SiteStatsBar } from "@/components/layout/site-stats-bar";
 import { RegistrationDeadlineBar } from "@/components/layout/registration-deadline-bar";
+import { SiteSearch } from "@/components/layout/site-search";
 import { siteNavItems, type NavItem } from "@/lib/site-nav";
 import { cn } from "@/lib/utils";
 
@@ -71,7 +72,7 @@ export function SiteHeader() {
         </div>
 
         <div className="flex min-h-[4.75rem] items-center justify-center py-4 pl-20 pr-4 sm:min-h-[5.75rem] sm:px-36 sm:py-5">
-          <p className="text-center text-[0.9375rem] font-bold leading-tight tracking-wide text-brand sm:text-3xl sm:leading-normal lg:text-4xl">
+          <p className="text-center text-[1.078125rem] font-bold leading-tight tracking-wide text-brand sm:text-3xl sm:leading-normal lg:text-4xl">
             <span className="block sm:inline">Innovative</span>
             <span className="block sm:inline">
               <span className="hidden sm:inline"> </span>
@@ -83,6 +84,8 @@ export function SiteHeader() {
 
       <nav className="border-b border-border bg-brand-soft">
         <div className="relative mx-auto flex min-h-16 max-w-7xl items-center justify-center px-4 py-3 sm:min-h-0 sm:px-6 sm:py-2 md:min-h-0">
+          <SiteSearch className="absolute left-4 z-10 w-[min(12.5rem,calc(100%-5.5rem))] sm:left-6 md:w-52 lg:w-60" />
+
           <ul className="hidden items-center justify-center gap-1 md:flex lg:gap-2">
             {siteNavItems.map((item) => {
               const active = isItemActive(item, pathname);
