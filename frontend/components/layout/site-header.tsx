@@ -59,7 +59,7 @@ export function SiteHeader() {
           />
         </Link>
 
-        <div className="absolute right-4 top-1/2 z-10 shrink-0 -translate-y-1/2 sm:right-6">
+        <div className="absolute right-4 top-1/2 z-10 hidden shrink-0 -translate-y-1/2 sm:right-6 sm:block">
           <Image
             src="/brand/vitaran-learning.webp"
             alt="Vitaran Learning"
@@ -70,8 +70,8 @@ export function SiteHeader() {
           />
         </div>
 
-        <div className="flex min-h-[4.75rem] items-center justify-center px-24 py-4 sm:min-h-[5.75rem] sm:px-36 sm:py-5">
-          <p className="text-center text-3xl font-bold tracking-wide text-brand sm:text-3xl lg:text-4xl">
+        <div className="flex min-h-[4.75rem] items-center justify-center py-4 pl-20 pr-4 sm:min-h-[5.75rem] sm:px-36 sm:py-5">
+          <p className="text-center text-[0.9375rem] font-bold tracking-wide text-brand sm:text-3xl lg:text-4xl">
             Innovative Talent Search Examination
           </p>
         </div>
