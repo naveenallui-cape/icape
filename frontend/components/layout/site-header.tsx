@@ -71,8 +71,12 @@ export function SiteHeader() {
         </div>
 
         <div className="flex min-h-[4.75rem] items-center justify-center py-4 pl-20 pr-4 sm:min-h-[5.75rem] sm:px-36 sm:py-5">
-          <p className="text-center text-[0.9375rem] font-bold tracking-wide text-brand sm:text-3xl lg:text-4xl">
-            Innovative Talent Search Examination
+          <p className="text-center text-[0.9375rem] font-bold leading-tight tracking-wide text-brand sm:text-3xl sm:leading-normal lg:text-4xl">
+            <span className="block sm:inline">Innovative</span>
+            <span className="block sm:inline">
+              <span className="hidden sm:inline"> </span>
+              Talent Search Examination
+            </span>
           </p>
         </div>
       </div>
