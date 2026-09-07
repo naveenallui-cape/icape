@@ -54,7 +54,7 @@ export default function RegistrationFormsPage() {
                 <p className="mt-2 flex-1 text-base leading-relaxed text-muted">
                   {form.description}
                 </p>
-                <span className="mt-5 inline-flex w-fit items-center gap-2 text-base font-semibold text-brand">
+                <span className="mt-5 inline-flex w-fit items-center gap-2 rounded-md bg-accent px-4 py-2.5 text-base font-semibold text-brand shadow-sm transition hover:bg-accent-hover">
                   <Download className="size-4" aria-hidden />
                   Download PDF
                 </span>

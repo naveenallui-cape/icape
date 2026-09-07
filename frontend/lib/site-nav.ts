@@ -138,13 +138,13 @@ export const homeCards: HomeCard[] = [
     imageAlt: "Student taking an exam representing results",
   },
   {
-    title: "ANSWERS KEYS & CUT OFF 2025-26",
+    title: "NOTICE BOARD",
     description:
-      "Answer keys for various i-CAPE Olympiads being conducted during 2025-26 are",
-    href: "/answer-keys",
+      "Latest important notices, deadlines, and official updates from i-CAPE.",
+    href: "/notice-board",
     image:
       "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&h=500&fit=crop&q=80",
-    imageAlt: "Desk with documents representing answer keys and cut-offs",
+    imageAlt: "Notice board with important announcements and updates",
   },
 ];
 

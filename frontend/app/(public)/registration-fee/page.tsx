@@ -61,13 +61,6 @@ export default function RegistrationFeePage() {
             </li>
             <li>
               <strong className="text-foreground">
-                Demand Draft / Multicity Cheque:
-              </strong>{" "}
-              Drawn in favour of the account beneficiary name shown below,
-              payable as instructed by i-CAPE.
-            </li>
-            <li>
-              <strong className="text-foreground">
                 Online Transfer (NEFT/RTGS/IMPS):
               </strong>{" "}
               Transfer to the bank account listed below and share the transaction
