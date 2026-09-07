@@ -60,33 +60,44 @@ export function SiteHeader() {
           />
         </Link>
 
-        <div className="absolute right-4 top-1/2 z-10 hidden shrink-0 -translate-y-1/2 sm:right-6 sm:block">
+        <div className="absolute right-4 top-1/2 z-10 hidden shrink-0 -translate-y-1/2 md:right-6 md:block">
           <Image
             src="/brand/vitaran-learning.webp"
             alt="Vitaran Learning"
             width={160}
             height={56}
-            className="h-10 w-auto object-contain sm:h-12"
+            className="h-12 w-auto object-contain"
             priority
           />
         </div>
 
-        <div className="flex min-h-[4.75rem] items-center justify-center py-4 pl-20 pr-4 sm:min-h-[5.75rem] sm:px-36 sm:py-5">
-          <p className="text-center text-[1.078125rem] font-bold leading-tight tracking-wide text-brand sm:text-3xl sm:leading-normal lg:text-4xl">
-            <span className="block sm:inline">Innovative</span>
-            <span className="block sm:inline">
-              <span className="hidden sm:inline"> </span>
-              Talent Search Examination
-            </span>
+        <button
+          type="button"
+          className="absolute right-4 top-1/2 z-10 inline-flex size-12 -translate-y-1/2 items-center justify-center rounded-md text-brand hover:bg-brand-soft md:hidden"
+          aria-expanded={open}
+          aria-controls="mobile-side-nav"
+          aria-label={open ? "Close menu" : "Open menu"}
+          onClick={() => setOpen((prev) => !prev)}
+        >
+          {open ? <X className="size-7" /> : <Menu className="size-7" />}
+        </button>
+
+        {/* Mobile: logo + menu only */}
+        <div className="min-h-[4.75rem] md:hidden" aria-hidden />
+
+        {/* Desktop: title */}
+        <div className="hidden min-h-[5.75rem] items-center justify-center px-36 py-5 md:flex">
+          <p className="text-center text-3xl font-bold tracking-wide text-brand lg:text-4xl">
+            Innovative Talent Search Examination
           </p>
         </div>
       </div>
 
-      <nav className="border-b border-border bg-brand-soft">
-        <div className="relative mx-auto flex min-h-16 max-w-7xl items-center justify-center px-4 py-3 sm:min-h-0 sm:px-6 sm:py-2 md:min-h-0">
-          <SiteSearch className="absolute left-4 z-10 w-[min(12.5rem,calc(100%-5.5rem))] sm:left-6 md:w-52 lg:w-60" />
+      <nav className="hidden border-b border-border bg-brand-soft md:block">
+        <div className="relative mx-auto flex max-w-7xl items-center justify-center px-6 py-2">
+          <SiteSearch className="absolute left-6 z-10 w-52 lg:w-60" />
 
-          <ul className="hidden items-center justify-center gap-1 md:flex lg:gap-2">
+          <ul className="flex items-center justify-center gap-1 lg:gap-2">
             {siteNavItems.map((item) => {
               const active = isItemActive(item, pathname);
               const hasChildren = Boolean(item.children?.length);
@@ -129,17 +140,6 @@ export function SiteHeader() {
               );
             })}
           </ul>
-
-          <button
-            type="button"
-            className="absolute right-4 inline-flex size-12 items-center justify-center rounded-md text-brand hover:bg-white/70 sm:right-6 md:hidden"
-            aria-expanded={open}
-            aria-controls="mobile-side-nav"
-            aria-label={open ? "Close menu" : "Open menu"}
-            onClick={() => setOpen((prev) => !prev)}
-          >
-            {open ? <X className="size-7" /> : <Menu className="size-7" />}
-          </button>
         </div>
       </nav>
 
