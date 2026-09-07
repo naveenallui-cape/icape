@@ -1,0 +1,41 @@
+---
+description: i-CAPE core project rules — stack, reuse packages, domain, security
+alwaysApply: true
+---
+
+# i-CAPE Core Rules
+
+## Reuse first (mandatory)
+
+Before writing anything custom, check installed/approved packages and existing shared components.
+
+Decision order:
+
+1. Existing package
+2. Existing shared component
+3. Extend existing component
+4. Create new component
+5. Install new package (last resort)
+
+Do not reinvent buttons, inputs, dialogs, tables, icons, toasts, forms, loaders, etc.
+
+## Approved stack — do not replace
+
+- Frontend: Next.js App Router, TypeScript, Tailwind, shadcn/ui, Radix, Lucide, TanStack Query, React Hook Form, Zod, Recharts
+- Backend: Express + TypeScript (separate from frontend)
+- DB: PostgreSQL + Prisma
+- Media: Cloudinary (backend secrets only)
+
+Do not add competing libraries for the same purpose without a strong reason.
+
+## Domain
+
+- Core concept is **Olympiad Year** (e.g. `2026-2027`) — never rename to Academic Year/Session
+- Enforce year isolation via `olympiadYearId` on the backend
+- Fresh registration each Olympiad Year — never overwrite historical records
+- **Admin-only login** — no school/student login or self-registration
+
+## Security
+
+Never expose `DATABASE_URL`, `AUTH_SECRET`, or `CLOUDINARY_API_SECRET` to the frontend.
+Never commit secrets. Use `.env` / `.env.example`.

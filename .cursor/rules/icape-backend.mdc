@@ -1,0 +1,30 @@
+---
+description: i-CAPE backend — layered architecture, Prisma, year isolation
+globs: backend/**/*.{ts,js}
+alwaysApply: false
+---
+
+# i-CAPE Backend
+
+## Architecture (required)
+
+```text
+Route → Controller → Service → Repository → Prisma → PostgreSQL
+```
+
+- No business logic in route definitions
+- Prefer Prisma over raw SQL unless there is a real need
+- Backend enforces all important business rules (never frontend-only)
+
+## Domain enforcement
+
+- Scope year-specific operations by `olympiadYearId`
+- Treat each Olympiad Year as an independent registration cycle
+- Admin-only authentication paths
+
+## API & quality
+
+- Keep `/api` prefix; return consistent JSON responses
+- Never leak stack traces, DB errors, or secrets to clients
+- Prefer proper TypeScript types; avoid `any` unless unavoidable
+- Cloudinary credentials stay backend-only

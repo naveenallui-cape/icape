@@ -1,0 +1,31 @@
+---
+description: i-CAPE frontend — shadcn/ui, Lucide, forms, API, Next.js patterns
+globs: frontend/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+# i-CAPE Frontend
+
+## UI
+
+- Use **shadcn/ui** (+ Radix) for all standard UI primitives
+- Icons: **Lucide React only** — no hand-drawn SVG, no emoji icons, no mixed icon libraries
+- No base64 images — use Cloudinary for media
+- Consistent design tokens (spacing, typography, colors, radius, shadows)
+- Look: premium, professional, institutional, enterprise — not childish or flashy
+
+## Data & forms
+
+- API calls only via `frontend/lib/api.ts` + `NEXT_PUBLIC_API_URL`
+- Server state: **TanStack Query**
+- Forms: **React Hook Form + Zod**
+- No hardcoded fake data in finished features (temp mocks must be isolated and removed)
+- One table architecture for Admin (search/filter/sort/pagination where needed)
+- Reuse EmptyState / LoadingState / ErrorState / ConfirmDialog patterns
+- Toasts for feedback — never `alert()` / `window.confirm()` for main UI
+
+## Next.js
+
+- App Router; Server Components by default
+- `"use client"` only when interactivity/state requires it
+- Responsive via Tailwind; keep accessibility from shadcn/Radix

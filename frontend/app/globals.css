@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  /* Elite Academic palette — stronger slate so page isn’t flat white */
+  --background: #e8edf5;
+  --foreground: #2c3e50;
+  --muted: #5a6a7a;
+  --brand: #0d173b;
+  --brand-hover: #162552;
+  --brand-deep: #0d173b;
+  --brand-stats: #192345; /* ~5% lighter than brand for 3rd navbar */
+  --brand-soft: #d5dde9;
+  --brand-muted: #081028;
+  --accent: #d4af37;
+  --accent-hover: #c4a030;
+  --accent-soft: #f8f1d8;
+  --surface: #ffffff;
+  --border: #c5cedc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-stats: var(--brand-stats);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-muted: var(--brand-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-source-serif);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.125rem; /* 18px — easier reading for school users */
+  line-height: 1.6;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 28s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}
