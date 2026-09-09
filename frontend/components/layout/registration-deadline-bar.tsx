@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const message =
-  "Last date for registration: 24th August 2026 · Download forms, pay INR 150 per student per Olympiad, and submit on WhatsApp +91 80745 63902";
+  "Last date for registration: 31st August 2026 · Download forms, pay INR 150 per student per Olympiad, and submit on WhatsApp +91 80745 63902";
 
 export function RegistrationDeadlineBar() {
   return (

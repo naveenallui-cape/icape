@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
+import { DownloadAllButton } from "@/components/public/download-all-button";
 import { PageShell } from "@/components/public/page-shell";
 import {
   allGrades,
@@ -7,6 +9,33 @@ import {
   type GradePattern,
   type OlympiadPattern,
 } from "@/lib/exam-pattern";
+
+function patternGradeSlug(pattern: GradePattern) {
+  return pattern.grades.length === 1
+    ? `Grade-${pattern.grades[0]}`
+    : `Grades-${pattern.grades.join("-")}`;
+}
+
+function PatternDownloadLink({
+  href,
+  fileName,
+  label = "Download",
+}: {
+  href: string;
+  fileName: string;
+  label?: string;
+}) {
+  return (
+    <a
+      href={href}
+      download={fileName}
+      className="inline-flex items-center gap-2 rounded-xl bg-accent px-3.5 py-2 text-sm font-semibold text-brand shadow-sm transition hover:bg-accent-hover"
+    >
+      <Download className="size-4" aria-hidden />
+      {label}
+    </a>
+  );
+}
 
 function GradeTable({ pattern }: { pattern: GradePattern }) {
   const rows: { label: string; value: string }[] = [
@@ -112,6 +141,8 @@ function OlympiadGradePatterns({ olympiad }: { olympiad: OlympiadPattern }) {
         renderedPatternKeys.add(patternKey);
 
         const label = formatGradeLabel(pattern.grades);
+        const slug = patternGradeSlug(pattern);
+        const fileName = `i-CAPE-${olympiad.shortName}-${slug}-Pattern.pdf`;
 
         return (
           <section
@@ -119,11 +150,18 @@ function OlympiadGradePatterns({ olympiad }: { olympiad: OlympiadPattern }) {
             id={`${olympiad.id}-grade-${pattern.grades.join("-")}`}
             className="scroll-mt-28 space-y-4"
           >
-            <div>
-              <h3 className="text-xl font-bold text-brand sm:text-2xl">
-                {label}
-              </h3>
-              <div className="mt-2 h-0.5 w-12 bg-accent" aria-hidden />
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-brand sm:text-2xl">
+                  {label}
+                </h3>
+                <div className="mt-2 h-0.5 w-12 bg-accent" aria-hidden />
+              </div>
+              <PatternDownloadLink
+                href={`/pattern/${fileName}`}
+                fileName={fileName}
+                label="Download PDF"
+              />
             </div>
             <GradeTable pattern={pattern} />
           </section>
@@ -138,6 +176,13 @@ export default function PatternPage() {
     <PageShell
       title="Pattern of Questions and Marking Scheme"
       description="Question pattern, syllabus areas, and marking scheme for IMO, ISO, and IEO — Grades 3 to 10."
+      action={
+        <DownloadAllButton
+          href="/pattern/i-CAPE-Pattern-of-Questions-and-Marking-Scheme.pdf"
+          fileName="i-CAPE-Pattern-of-Questions-and-Marking-Scheme.pdf"
+          label="Download all PDFs"
+        />
+      }
     >
       <div className="space-y-14">
         <nav
@@ -155,25 +200,35 @@ export default function PatternPage() {
           ))}
         </nav>
 
-        {olympiadPatterns.map((olympiad) => (
-          <section
-            key={olympiad.id}
-            id={olympiad.id}
-            className="scroll-mt-28 space-y-6"
-          >
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-                {olympiad.shortName}
-              </p>
-              <h2 className="mt-1 text-2xl font-bold text-brand sm:text-3xl">
-                {olympiad.fullName}
-              </h2>
-              <div className="mt-2 h-0.5 w-14 bg-accent" aria-hidden />
-            </div>
+        {olympiadPatterns.map((olympiad) => {
+          const olympiadFile = `i-CAPE-${olympiad.shortName}-Pattern.pdf`;
+          return (
+            <section
+              key={olympiad.id}
+              id={olympiad.id}
+              className="scroll-mt-28 space-y-6"
+            >
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
+                    {olympiad.shortName}
+                  </p>
+                  <h2 className="mt-1 text-2xl font-bold text-brand sm:text-3xl">
+                    {olympiad.fullName}
+                  </h2>
+                  <div className="mt-2 h-0.5 w-14 bg-accent" aria-hidden />
+                </div>
+                <PatternDownloadLink
+                  href={`/pattern/${olympiadFile}`}
+                  fileName={olympiadFile}
+                  label={`Download ${olympiad.shortName}`}
+                />
+              </div>
 
-            <OlympiadGradePatterns olympiad={olympiad} />
-          </section>
-        ))}
+              <OlympiadGradePatterns olympiad={olympiad} />
+            </section>
+          );
+        })}
       </div>
     </PageShell>
   );

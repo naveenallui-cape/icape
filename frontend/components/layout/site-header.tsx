@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { SiteStatsBar } from "@/components/layout/site-stats-bar";
 import { RegistrationDeadlineBar } from "@/components/layout/registration-deadline-bar";
 import { SiteSearch } from "@/components/layout/site-search";
 import { siteNavItems, type NavItem } from "@/lib/site-nav";
@@ -94,13 +93,13 @@ export function SiteHeader() {
       </div>
 
       {/* Mobile title bar — full width with small side gaps */}
-      <div className="w-full border-b border-border bg-brand-soft px-1.5 py-2.5 md:hidden">
-        <p className="w-full text-center text-[4.4vw] font-bold leading-none tracking-wide text-brand whitespace-nowrap">
+      <div className="w-full border-b border-brand-stats bg-brand-stats px-1.5 py-2.5 md:hidden">
+        <p className="w-full text-center text-[4.4vw] font-bold leading-none tracking-wide text-white whitespace-nowrap">
           Innovative Talent Search Examination
         </p>
       </div>
 
-      <nav className="hidden border-b border-border bg-brand-soft md:block">
+      <nav className="hidden border-b border-brand-stats bg-brand-stats md:block">
         <div className="relative mx-auto flex max-w-7xl items-center justify-center px-6 py-2">
           <SiteSearch className="absolute left-6 z-10 w-52 lg:w-60" />
 
@@ -114,8 +113,8 @@ export function SiteHeader() {
                   <Link
                     href={item.href}
                     className={cn(
-                      "inline-flex items-center gap-1 border-b-2 border-transparent px-3.5 py-2.5 text-xl font-bold text-brand",
-                      active && "border-brand",
+                      "inline-flex items-center gap-1 border-b-2 border-transparent px-3.5 py-2.5 text-xl font-bold text-white/90 hover:text-white",
+                      active && "border-accent text-white",
                     )}
                   >
                     {item.label}
@@ -150,7 +149,6 @@ export function SiteHeader() {
         </div>
       </nav>
 
-      <SiteStatsBar />
       <RegistrationDeadlineBar />
 
       <div
