@@ -7,7 +7,7 @@ export function RegistrationDeadlineBar() {
   return (
     <div className="border-b border-accent/40 bg-accent-soft">
       <div className="flex items-center gap-3 px-2 py-2.5 sm:px-4">
-        <span className="shrink-0 rounded-full bg-accent px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand sm:text-sm">
+        <span className="hidden shrink-0 rounded-full bg-accent px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand sm:inline-flex sm:text-sm">
           Notice
         </span>
 
