@@ -131,7 +131,7 @@ export const homeCards: HomeCard[] = [
   {
     title: "RESULTS",
     description:
-      "i-CAPE Exam Results for Olympiad Year 2025-26. Please click here...",
+      "Check student and school olympiad results for Olympiad Year 2025-26.",
     href: "/results",
     image:
       "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=800&h=500&fit=crop&q=80",

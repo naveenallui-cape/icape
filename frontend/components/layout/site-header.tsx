@@ -93,6 +93,13 @@ export function SiteHeader() {
         </div>
       </div>
 
+      {/* Mobile title bar — full width with small side gaps */}
+      <div className="w-full border-b border-border bg-brand-soft px-1.5 py-2.5 md:hidden">
+        <p className="w-full text-center text-[4.4vw] font-bold leading-none tracking-wide text-brand whitespace-nowrap">
+          Innovative Talent Search Examination
+        </p>
+      </div>
+
       <nav className="hidden border-b border-border bg-brand-soft md:block">
         <div className="relative mx-auto flex max-w-7xl items-center justify-center px-6 py-2">
           <SiteSearch className="absolute left-6 z-10 w-52 lg:w-60" />

@@ -17,7 +17,7 @@ export function HomeCards() {
             <Link
               key={card.href}
               href={card.href}
-              className="group flex w-full flex-col overflow-hidden rounded-xl border border-accent/50 bg-surface shadow-[0_1px_2px_rgba(13,23,59,0.04)] hover:shadow-[0_8px_24px_rgba(13,23,59,0.1)]"
+              className="group flex w-full flex-col overflow-hidden rounded-xl border border-accent/50 bg-[color-mix(in_srgb,var(--accent)_3%,white)] shadow-[0_1px_2px_rgba(13,23,59,0.04)] transition duration-300 ease-out hover:z-10 hover:scale-[1.03] hover:shadow-[0_10px_28px_rgba(13,23,59,0.12)]"
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-brand-soft">
                 <Image
@@ -25,7 +25,7 @@ export function HomeCards() {
                   alt={card.imageAlt}
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 20vw"
-                  className="object-cover"
+                  className="object-cover transition duration-300 group-hover:scale-105"
                 />
                 <span className="absolute bottom-0 left-0 h-1 w-full bg-accent" />
               </div>
@@ -37,7 +37,7 @@ export function HomeCards() {
                 <p className="text-base leading-relaxed text-muted">
                   {card.description}
                 </p>
-                <span className="text-base font-medium text-brand group-hover:underline">
+                <span className="mt-auto inline-flex w-fit items-center rounded-md bg-accent px-3.5 py-2 text-sm font-semibold text-brand shadow-sm transition group-hover:bg-accent-hover">
                   Read more
                 </span>
               </div>

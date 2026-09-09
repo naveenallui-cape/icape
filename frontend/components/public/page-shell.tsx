@@ -1,16 +1,33 @@
 type PageShellProps = {
   title: string;
+  eyebrow?: string;
   description?: string;
   children?: React.ReactNode;
 };
 
-export function PageShell({ title, description, children }: PageShellProps) {
+export function PageShell({
+  title,
+  eyebrow,
+  description,
+  children,
+}: PageShellProps) {
   return (
     <>
       {/* Page hero — compact height (~40% less padding) */}
       <section className="border-b border-border bg-surface pb-6 pt-2 sm:pb-7 sm:pt-2.5">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <h1 className="text-2xl font-bold tracking-tight text-brand sm:text-3xl">
+          {eyebrow ? (
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
+              {eyebrow}
+            </p>
+          ) : null}
+          <h1
+            className={
+              eyebrow
+                ? "mt-2 text-2xl font-bold tracking-tight text-brand sm:text-3xl"
+                : "text-2xl font-bold tracking-tight text-brand sm:text-3xl"
+            }
+          >
             {title}
           </h1>
           <div className="mt-2 h-0.5 w-14 bg-accent" aria-hidden />

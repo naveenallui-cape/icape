@@ -64,3 +64,24 @@ body {
     animation: none;
   }
 }
+
+@media print {
+  header,
+  footer,
+  .print\:hidden,
+  button,
+  nav {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+}
+
