@@ -43,7 +43,7 @@ export function SiteHeader() {
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-50">
+    <header className="site-header sticky top-0 z-50">
       <div className="relative border-b border-border bg-white">
         <Link
           href="/"

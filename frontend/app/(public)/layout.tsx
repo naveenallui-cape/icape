@@ -1,6 +1,7 @@
 import { BackButton } from "@/components/layout/back-button";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { WelcomeOlympiadPopup } from "@/components/public/welcome-olympiad-popup";
 
 export default function PublicLayout({
   children,
@@ -13,6 +14,7 @@ export default function PublicLayout({
       <BackButton />
       <main className="flex-1">{children}</main>
       <SiteFooter />
+      <WelcomeOlympiadPopup />
     </div>
   );
 }

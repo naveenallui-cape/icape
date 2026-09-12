@@ -66,22 +66,125 @@ body {
 }
 
 @media print {
-  header,
-  footer,
+  .site-header,
+  .site-footer,
+  .no-print,
   .print\:hidden,
   button,
-  nav {
+  nav,
+  form,
+  select,
+  input {
     display: none !important;
+  }
+
+  @page {
+    margin: 10mm;
   }
 
   body {
     background: white !important;
-    color: black !important;
-    font-size: 12pt;
+    color: #0d173b !important;
+    font-size: 10pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   main {
     padding: 0 !important;
+  }
+
+  .result-sheet,
+  .result-sheet * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color: #0d173b !important;
+  }
+
+  .result-sheet {
+    border: 2pt solid #0d173b !important;
+    box-shadow: none !important;
+  }
+
+  .text-muted {
+    color: #4a5568 !important;
+  }
+
+  .text-accent {
+    color: #b8860b !important;
+  }
+
+  .school-results-table-wrap {
+    overflow: visible !important;
+  }
+
+  .school-results-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    font-size: 8pt !important;
+    border-collapse: collapse !important;
+  }
+
+  .school-results-table th,
+  .school-results-table td {
+    padding: 3pt 2pt !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Keep a clear gap between Student and Grade when printing */
+  .school-results-table .col-student {
+    width: 20% !important;
+    padding-right: 2pt !important;
+  }
+
+  .school-results-table .col-student-grade-gap {
+    width: 10pt !important;
+    min-width: 10pt !important;
+    max-width: 10pt !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  .school-results-table .col-grade {
+    width: 7% !important;
+    padding-left: 2pt !important;
+  }
+
+  /* Portrait: hide less-critical columns so the table fits the page width */
+  @media (orientation: portrait) {
+    .school-results-table .col-print-optional {
+      display: none !important;
+    }
+
+    .school-results-table {
+      font-size: 7pt !important;
+    }
+
+    .school-results-table .col-student {
+      width: 28% !important;
+    }
+
+    .school-results-table .col-student-grade-gap {
+      width: 8pt !important;
+      min-width: 8pt !important;
+      max-width: 8pt !important;
+    }
+  }
+
+  /* Landscape: more room — keep full columns + wider Student/Grade gap */
+  @media (orientation: landscape) {
+    .school-results-table .col-student-grade-gap {
+      width: 14pt !important;
+      min-width: 14pt !important;
+      max-width: 14pt !important;
+    }
+
+    .school-results-table .col-student {
+      width: 22% !important;
+    }
   }
 }
 

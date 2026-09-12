@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Download, Eye, FileText } from "lucide-react";
+import { Download, Eye } from "lucide-react";
 import {
   getPapersByOlympiad,
+  getPreviewPapersByOlympiad,
   sampleOlympiads,
+  type PreviewPaper,
   type SampleOlympiadId,
   type SamplePaper,
 } from "@/lib/sample-papers";
@@ -16,25 +18,124 @@ function resolveOlympiad(value: string | null): SampleOlympiadId {
   return "imo";
 }
 
+type ActivePaper = SamplePaper | PreviewPaper;
+
+function isPreviewPaper(paper: ActivePaper): paper is PreviewPaper {
+  return "level" in paper && "set" in paper;
+}
+
+function OlympiadTabs({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: SampleOlympiadId;
+  onChange: (id: SampleOlympiadId) => void;
+}) {
+  return (
+    <nav aria-label={label} className="flex flex-wrap gap-2">
+      {sampleOlympiads.map((olympiad) => (
+        <button
+          key={olympiad.id}
+          type="button"
+          onClick={() => onChange(olympiad.id)}
+          className={cn(
+            "rounded-full border px-4 py-2 text-sm font-bold transition sm:px-5 sm:text-base",
+            value === olympiad.id
+              ? "border-brand bg-brand text-white"
+              : "border-border bg-surface text-brand hover:border-accent hover:bg-accent-soft",
+          )}
+        >
+          {olympiad.shortName}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function olympiadMeta(id: SampleOlympiadId) {
+  return sampleOlympiads.find((item) => item.id === id);
+}
+
+function downloadAvailablePapers(
+  papers: Array<{ available: boolean; href: string; fileName: string }>,
+) {
+  const available = papers.filter((paper) => paper.available);
+  available.forEach((paper, index) => {
+    window.setTimeout(() => {
+      const link = document.createElement("a");
+      link.href = paper.href;
+      link.download = paper.fileName;
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }, index * 250);
+  });
+}
+
+function TableDownloadButton({
+  papers,
+  label,
+}: {
+  papers: Array<{ available: boolean; href: string; fileName: string }>;
+  label: string;
+}) {
+  const availableCount = papers.filter((paper) => paper.available).length;
+  if (availableCount === 0) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => downloadAvailablePapers(papers)}
+      className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-brand shadow-sm transition hover:bg-accent-hover"
+    >
+      <Download className="size-4" aria-hidden />
+      {label}
+    </button>
+  );
+}
+
 export function SamplePapersShowcase() {
   const searchParams = useSearchParams();
-  const [activeOlympiad, setActiveOlympiad] = useState<SampleOlympiadId>(() =>
-    resolveOlympiad(searchParams.get("olympiad")),
-  );
-  const [preview, setPreview] = useState<SamplePaper | null>(null);
+  const initial = resolveOlympiad(searchParams.get("olympiad"));
+
+  const [modelOlympiad, setModelOlympiad] =
+    useState<SampleOlympiadId>(initial);
+  const [level1Olympiad, setLevel1Olympiad] =
+    useState<SampleOlympiadId>(initial);
+  const [level2Olympiad, setLevel2Olympiad] =
+    useState<SampleOlympiadId>(initial);
+  const [preview, setPreview] = useState<ActivePaper | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setActiveOlympiad(resolveOlympiad(searchParams.get("olympiad")));
+    const next = resolveOlympiad(searchParams.get("olympiad"));
+    setModelOlympiad(next);
+    setLevel1Olympiad(next);
+    setLevel2Olympiad(next);
     setPreview(null);
   }, [searchParams]);
 
-  const papers = useMemo(
-    () => getPapersByOlympiad(activeOlympiad),
-    [activeOlympiad],
+  const modelPapers = useMemo(
+    () => getPapersByOlympiad(modelOlympiad),
+    [modelOlympiad],
+  );
+  const level1Papers = useMemo(
+    () =>
+      getPreviewPapersByOlympiad(level1Olympiad).filter((p) => p.level === 1),
+    [level1Olympiad],
+  );
+  const level2Papers = useMemo(
+    () =>
+      getPreviewPapersByOlympiad(level2Olympiad).filter((p) => p.level === 2),
+    [level2Olympiad],
   );
 
-  const activeMeta = sampleOlympiads.find((item) => item.id === activeOlympiad);
+  const modelMeta = olympiadMeta(modelOlympiad);
+  const level1Meta = olympiadMeta(level1Olympiad);
+  const level2Meta = olympiadMeta(level2Olympiad);
 
   useEffect(() => {
     if (!preview) return;
@@ -44,94 +145,199 @@ export function SamplePapersShowcase() {
     });
   }, [preview]);
 
+  function actionsCell(paper: ActivePaper) {
+    if (!paper.available) {
+      return (
+        <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
+          PDF coming soon
+        </span>
+      );
+    }
+
+    return (
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setPreview(paper)}
+          className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover"
+        >
+          <Eye className="size-3.5" aria-hidden />
+          View
+        </button>
+        <a
+          href={paper.href}
+          download={paper.fileName}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-xs font-semibold text-brand hover:border-accent hover:bg-accent-soft"
+        >
+          <Download className="size-3.5" aria-hidden />
+          Download
+        </a>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8">
-      <nav
-        aria-label="Olympiad sample papers"
-        className="flex flex-wrap gap-3"
-      >
-        {sampleOlympiads.map((olympiad) => (
-          <button
-            key={olympiad.id}
-            type="button"
-            onClick={() => {
-              setActiveOlympiad(olympiad.id);
-              setPreview(null);
-            }}
-            className={cn(
-              "rounded-full border px-5 py-2.5 text-base font-bold transition",
-              activeOlympiad === olympiad.id
-                ? "border-brand bg-brand text-white"
-                : "border-border bg-surface text-brand hover:border-accent hover:bg-accent-soft",
-            )}
-          >
-            {olympiad.shortName}
-          </button>
-        ))}
-      </nav>
+    <div className="space-y-10">
+      <section id="model-papers" className="scroll-mt-28 space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 className="text-xl font-bold text-brand sm:text-2xl">
+              Model Papers
+            </h3>
+            <p className="mt-1 text-base text-muted">
+              Grade 3–10 model papers for {modelMeta?.shortName}.
+            </p>
+          </div>
+          <TableDownloadButton
+            papers={modelPapers}
+            label={`Download ${modelMeta?.shortName} model PDFs`}
+          />
+        </div>
 
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-          {activeMeta?.shortName}
-        </p>
-        <h2 className="mt-1 text-2xl font-bold text-brand sm:text-3xl">
-          {activeMeta?.fullName}
-        </h2>
-        <div className="mt-2 h-0.5 w-14 bg-accent" aria-hidden />
-        <p className="mt-3 max-w-3xl text-base text-muted sm:text-lg">
-          View or download Grade 3–10 model papers. Open a paper to preview it
-          on this page, or download the PDF to practise offline.
-        </p>
-      </div>
+        <OlympiadTabs
+          label="Model papers olympiad"
+          value={modelOlympiad}
+          onChange={(id) => {
+            setModelOlympiad(id);
+            setPreview(null);
+          }}
+        />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {papers.map((paper) => {
-          const isActive = preview?.href === paper.href;
+        <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-[0_10px_30px_rgba(13,23,59,0.06)]">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead className="bg-brand-stats text-white">
+              <tr>
+                <th className="px-4 py-3 font-semibold">#</th>
+                <th className="px-4 py-3 font-semibold">Grade</th>
+                <th className="px-4 py-3 font-semibold">Paper</th>
+                <th className="px-4 py-3 font-semibold">Olympiad</th>
+                <th className="px-4 py-3 font-semibold">Status</th>
+                <th className="px-4 py-3 font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {modelPapers.map((paper, index) => (
+                <tr
+                  key={paper.href}
+                  className={
+                    index % 2 === 0
+                      ? "border-t border-border bg-white"
+                      : "border-t border-border bg-brand-soft/30"
+                  }
+                >
+                  <td className="px-4 py-3 text-muted">{index + 1}</td>
+                  <td className="px-4 py-3 font-semibold text-brand">
+                    Grade {paper.grade}
+                  </td>
+                  <td className="px-4 py-3 text-brand">{paper.title}</td>
+                  <td className="px-4 py-3 font-semibold text-brand">
+                    {modelMeta?.shortName}
+                  </td>
+                  <td className="px-4 py-3 text-muted">
+                    {paper.available ? "Available" : "Coming soon"}
+                  </td>
+                  <td className="px-4 py-3">{actionsCell(paper)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-          return (
-            <article
-              key={paper.href}
-              className={cn(
-                "flex flex-col rounded-2xl border border-accent/50 bg-surface p-5 shadow-[0_1px_2px_rgba(13,23,59,0.04)]",
-                isActive && "border-accent shadow-[0_8px_24px_rgba(13,23,59,0.1)]",
-              )}
-            >
-              <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-brand-soft text-brand">
-                <FileText className="size-6" aria-hidden />
+      <section id="previous-papers" className="scroll-mt-28 space-y-8">
+        <div>
+          <h3 className="text-xl font-bold text-brand sm:text-2xl">
+            Previous Papers
+          </h3>
+          <p className="mt-1 text-base text-muted">
+            Set A and Set B — choose olympiad for each level.
+          </p>
+        </div>
+
+        {(
+          [
+            {
+              level: 1 as const,
+              papers: level1Papers,
+              olympiad: level1Olympiad,
+              meta: level1Meta,
+              setOlympiad: setLevel1Olympiad,
+              label: "Level 1 previous papers olympiad",
+            },
+            {
+              level: 2 as const,
+              papers: level2Papers,
+              olympiad: level2Olympiad,
+              meta: level2Meta,
+              setOlympiad: setLevel2Olympiad,
+              label: "Level 2 previous papers olympiad",
+            },
+          ] as const
+        ).map(
+          ({ level, papers, olympiad, meta, setOlympiad, label }) => (
+            <div key={level} className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h4 className="text-lg font-bold text-brand">Level {level}</h4>
+                <TableDownloadButton
+                  papers={papers}
+                  label={`Download ${meta?.shortName} Level ${level} PDFs`}
+                />
               </div>
-              <h3 className="text-lg font-bold text-brand">{paper.title}</h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted sm:text-base">
-                {paper.description}
-              </p>
-
-              {paper.available ? (
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPreview(paper)}
-                    className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover"
-                  >
-                    <Eye className="size-4" aria-hidden />
-                    View
-                  </button>
-                  <a
-                    href={paper.href}
-                    download={paper.fileName}
-                    className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-brand hover:border-accent hover:bg-accent-soft"
-                  >
-                    <Download className="size-4" aria-hidden />
-                    Download
-                  </a>
-                </div>
-              ) : (
-                <p className="mt-5 rounded-lg bg-brand-soft px-3 py-2 text-sm font-medium text-brand">
-                  PDF coming soon
-                </p>
-              )}
-            </article>
-          );
-        })}
-      </div>
+              <OlympiadTabs
+                label={label}
+                value={olympiad}
+                onChange={(id) => {
+                  setOlympiad(id);
+                  setPreview(null);
+                }}
+              />
+              <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-[0_10px_30px_rgba(13,23,59,0.06)]">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="bg-brand-stats text-white">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">#</th>
+                      <th className="px-4 py-3 font-semibold">Set</th>
+                      <th className="px-4 py-3 font-semibold">Grade</th>
+                      <th className="px-4 py-3 font-semibold">Paper</th>
+                      <th className="px-4 py-3 font-semibold">Olympiad</th>
+                      <th className="px-4 py-3 font-semibold">Status</th>
+                      <th className="px-4 py-3 font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {papers.map((paper, index) => (
+                      <tr
+                        key={paper.href}
+                        className={
+                          index % 2 === 0
+                            ? "border-t border-border bg-white"
+                            : "border-t border-border bg-brand-soft/30"
+                        }
+                      >
+                        <td className="px-4 py-3 text-muted">{index + 1}</td>
+                        <td className="px-4 py-3 font-semibold text-brand">
+                          Set {paper.set}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-brand">
+                          {paper.grade != null ? `Grade ${paper.grade}` : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-brand">{paper.title}</td>
+                        <td className="px-4 py-3 font-semibold text-brand">
+                          {meta?.shortName}
+                        </td>
+                        <td className="px-4 py-3 text-muted">
+                          {paper.available ? "Available" : "Coming soon"}
+                        </td>
+                        <td className="px-4 py-3">{actionsCell(paper)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ),
+        )}
+      </section>
 
       {preview?.available ? (
         <div
@@ -142,10 +348,13 @@ export function SamplePapersShowcase() {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-brand-soft px-4 py-3 sm:px-5">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-accent">
-                Preview
+                PDF viewer
               </p>
               <h3 className="text-lg font-bold text-brand">
-                {activeMeta?.shortName} · {preview.title}
+                {preview.olympiad.toUpperCase()} · {preview.title}
+                {isPreviewPaper(preview)
+                  ? ` · Level ${preview.level} Set ${preview.set}`
+                  : ""}
               </h3>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -153,7 +362,7 @@ export function SamplePapersShowcase() {
                 href={preview.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-brand hover:border-accent"
+                className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-brand hover:border-accent"
               >
                 <Eye className="size-4" aria-hidden />
                 Open in new tab
@@ -161,7 +370,7 @@ export function SamplePapersShowcase() {
               <a
                 href={preview.href}
                 download={preview.fileName}
-                className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover"
+                className="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover"
               >
                 <Download className="size-4" aria-hidden />
                 Download PDF

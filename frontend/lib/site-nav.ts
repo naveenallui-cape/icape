@@ -20,7 +20,7 @@ function olympiadChildren(code: "IMO" | "ISO" | "IEO", slug: string): NavChild[]
       href: `/pattern#${slug}`,
     },
     {
-      label: `ITSE ${code} Sample Model Test Papers`,
+      label: `ITSE ${code} Model & Previous Papers`,
       href: `/sample-papers?olympiad=${slug}`,
     },
   ];
@@ -93,9 +93,9 @@ export const homeCards: HomeCard[] = [
       "Students receiving certificates at an awards and recognition ceremony",
   },
   {
-    title: "PATTERN OF QUESTIONS AND MARKING SCHEME",
+    title: "PATTERN OF QUESTIONS, SYLLABUS AND MARKING SCHEME",
     description:
-      "Question pattern and marking scheme for Grades 3 to 10",
+      "Question pattern, syllabus, and marking scheme for Grades 3 to 10",
     href: "/pattern",
     image:
       "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&h=500&fit=crop&q=80",
@@ -120,9 +120,9 @@ export const homeCards: HomeCard[] = [
     imageAlt: "World map for zone and state categorization",
   },
   {
-    title: "SAMPLE / MODEL PAPERS",
+    title: "MODEL PAPERS & PREVIOUS PAPERS",
     description:
-      "View and download IMO, ISO & IEO model papers for Grades 3 to 10.",
+      "IMO, ISO & IEO model papers (Grades 3–10) and Level 1 / Level 2 previous papers.",
     href: "/sample-papers",
     image:
       "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&h=500&fit=crop&q=80",

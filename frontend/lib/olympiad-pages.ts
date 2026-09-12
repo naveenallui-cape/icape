@@ -91,7 +91,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
       "Outstanding performers in i-CAPE olympiads are recognised through national ranker trophies and certificates, top-performer scholarships and excellence certificates, school toppers’ medals and merit certificates, participation certificates for all students, plus school and teacher awards for exceptional contribution.",
     prepareTips: [
       "Study the grade-wise IMO pattern and syllabus on the Pattern page.",
-      "Practise with official i-CAPE IMO model papers from the Sample / Model Papers page.",
+      "Practise with official i-CAPE IMO model papers from the Model Papers & Previous Papers page.",
       "Strengthen fundamentals — numbers, operations, geometry, measurement, and reasoning.",
       "Take timed practice to get comfortable with OMR marking and exam duration.",
       "Revise carefully and avoid last-minute cramming; focus on clear concepts.",
@@ -150,7 +150,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
       "Outstanding performers in i-CAPE olympiads are recognised through national ranker trophies and certificates, top-performer scholarships and excellence certificates, school toppers’ medals and merit certificates, participation certificates for all students, plus school and teacher awards for exceptional contribution.",
     prepareTips: [
       "Review the grade-wise ISO pattern and syllabus on the Pattern page.",
-      "Practise with official i-CAPE ISO model papers from the Sample / Model Papers page.",
+      "Practise with official i-CAPE ISO model papers from the Model Papers & Previous Papers page.",
       "Build strong science fundamentals and connect concepts to real-life examples.",
       "Practise MCQs under timed conditions and mark answers carefully on OMR practice sheets.",
       "Revise key definitions, diagrams, and processes before the exam.",
@@ -209,7 +209,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
       "Outstanding performers in i-CAPE olympiads are recognised through national ranker trophies and certificates, top-performer scholarships and excellence certificates, school toppers’ medals and merit certificates, participation certificates for all students, plus school and teacher awards for exceptional contribution.",
     prepareTips: [
       "Go through the grade-wise IEO pattern and syllabus on the Pattern page.",
-      "Practise with official i-CAPE IEO model papers from the Sample / Model Papers page.",
+      "Practise with official i-CAPE IEO model papers from the Model Papers & Previous Papers page.",
       "Read regularly and revise grammar, vocabulary, and comprehension strategies.",
       "Practise interactive English situations — greetings, requests, conversations, and formal expressions.",
       "Attempt timed practice papers to improve accuracy and speed.",

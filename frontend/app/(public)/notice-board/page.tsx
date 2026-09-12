@@ -43,10 +43,10 @@ const notices: Notice[] = [
   {
     id: "sample-papers",
     date: "01 Sep 2026",
-    title: "Sample / model papers available for IMO, ISO & IEO",
-    body: "Model papers for Grades 3 to 10 are available to view and download. Use them to understand the exam pattern and practise before the olympiads.",
+    title: "Model papers & previous papers available for IMO, ISO & IEO",
+    body: "Grade-wise model papers and Level 1 / Level 2 previous papers (Set A & Set B) are listed for practice. Previous paper PDFs will be uploaded soon.",
     href: "/sample-papers",
-    hrefLabel: "Open sample papers",
+    hrefLabel: "Open model & previous papers",
   },
   {
     id: "rewards",

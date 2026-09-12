@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export function SiteFooter() {
   return (
-    <footer id="contact" className="mt-auto bg-brand text-white">
+    <footer id="contact" className="site-footer mt-auto bg-brand text-white">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-3">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Contact us</h2>

@@ -4,6 +4,7 @@ type PageShellProps = {
   description?: string;
   action?: React.ReactNode;
   children?: React.ReactNode;
+  hideHeroOnPrint?: boolean;
 };
 
 export function PageShell({
@@ -12,11 +13,18 @@ export function PageShell({
   description,
   action,
   children,
+  hideHeroOnPrint = false,
 }: PageShellProps) {
   return (
     <>
       {/* Page hero — compact height (~40% less padding) */}
-      <section className="border-b border-border bg-surface pb-6 pt-2 sm:pb-7 sm:pt-2.5">
+      <section
+        className={
+          hideHeroOnPrint
+            ? "no-print border-b border-border bg-surface pb-6 pt-2 sm:pb-7 sm:pt-2.5"
+            : "border-b border-border bg-surface pb-6 pt-2 sm:pb-7 sm:pt-2.5"
+        }
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
@@ -49,7 +57,13 @@ export function PageShell({
       </section>
 
       {children ? (
-        <section className="bg-background py-12 sm:py-16">
+        <section
+          className={
+            hideHeroOnPrint
+              ? "bg-background py-12 print:bg-white print:py-4 sm:py-16"
+              : "bg-background py-12 sm:py-16"
+          }
+        >
           <div className="mx-auto max-w-7xl px-4 sm:px-6">{children}</div>
         </section>
       ) : null}

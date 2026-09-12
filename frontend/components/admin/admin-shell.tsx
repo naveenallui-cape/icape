@@ -149,14 +149,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-[#eef2f8]">
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-white/10 bg-[#0d173b] text-white transition-transform md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-[11.7rem] flex-col border-r border-white/10 bg-[#0d173b] text-white transition-transform md:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-5">
-          <div>
-            <p className="text-lg font-bold">i-CAPE Admin</p>
-            <p className="text-xs text-white/60">{adminName}</p>
+        <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-4">
+          <div className="min-w-0">
+            <p className="truncate text-base font-bold">i-CAPE Admin</p>
+            <p className="truncate text-xs text-white/60">{adminName}</p>
           </div>
           <button
             type="button"
@@ -177,7 +177,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                  "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition",
                   active
                     ? "bg-accent text-brand"
                     : "text-white/80 hover:bg-white/10 hover:text-white",
@@ -202,7 +202,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex min-h-screen min-w-0 flex-col md:pl-72">
+      <div className="flex min-h-screen min-w-0 flex-col md:pl-[11.7rem]">
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-white px-4 py-3 md:px-6">
           <button
             type="button"

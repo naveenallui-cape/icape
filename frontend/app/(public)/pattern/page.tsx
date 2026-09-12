@@ -174,7 +174,7 @@ function OlympiadGradePatterns({ olympiad }: { olympiad: OlympiadPattern }) {
 export default function PatternPage() {
   return (
     <PageShell
-      title="Pattern of Questions and Marking Scheme"
+      title="Pattern of Questions, Syllabus and Marking Scheme"
       description="Question pattern, syllabus areas, and marking scheme for IMO, ISO, and IEO — Grades 3 to 10."
       action={
         <DownloadAllButton

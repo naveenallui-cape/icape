@@ -93,3 +93,15 @@ export function formatPersonName(value: string) {
     })
     .join(" ");
 }
+
+/** Readable status for badges / tables (avoids cramped ALL-CAPS). */
+export function formatResultStatus(status: string) {
+  const key = status.trim().toUpperCase();
+  const labels: Record<string, string> = {
+    PARTICIPATED: "Participated",
+    QUALIFIED: "Qualified",
+    PASSED: "Passed",
+    ABSENT: "Absent",
+  };
+  return labels[key] ?? formatPersonName(status);
+}

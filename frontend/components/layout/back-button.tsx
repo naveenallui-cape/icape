@@ -11,7 +11,7 @@ export function BackButton() {
   if (pathname === "/") return null;
 
   return (
-    <div className="w-full bg-surface px-5 pt-4 sm:px-8 lg:px-10">
+    <div className="w-full bg-surface px-5 pt-4 print:hidden sm:px-8 lg:px-10">
       <Button
         type="button"
         variant="accent"

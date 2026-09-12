@@ -166,7 +166,7 @@ export function OlympiadDetailPage({ content }: Props) {
           <div className="flex items-start gap-3">
             <FileDown className="mt-1 size-6 shrink-0 text-accent" />
             <div className="space-y-4">
-              <SectionHeading>{content.code} Sample / Model Papers</SectionHeading>
+              <SectionHeading>{content.code} Model Papers & Previous Papers</SectionHeading>
               <p className="max-w-4xl text-base leading-relaxed text-muted sm:text-lg">
                 {content.samplePapersBlurb}
               </p>
