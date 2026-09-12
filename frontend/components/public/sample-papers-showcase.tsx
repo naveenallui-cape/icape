@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Download, Eye } from "lucide-react";
 import {
@@ -19,10 +19,6 @@ function resolveOlympiad(value: string | null): SampleOlympiadId {
 }
 
 type ActivePaper = SamplePaper | PreviewPaper;
-
-function isPreviewPaper(paper: ActivePaper): paper is PreviewPaper {
-  return "level" in paper && "set" in paper;
-}
 
 function OlympiadTabs({
   label,
@@ -97,6 +93,38 @@ function TableDownloadButton({
   );
 }
 
+function actionsCell(paper: ActivePaper) {
+  if (!paper.available) {
+    return (
+      <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
+        PDF coming soon
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <a
+        href={paper.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover"
+      >
+        <Eye className="size-3.5" aria-hidden />
+        View
+      </a>
+      <a
+        href={paper.href}
+        download={paper.fileName}
+        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-xs font-semibold text-brand hover:border-accent hover:bg-accent-soft"
+      >
+        <Download className="size-3.5" aria-hidden />
+        Download
+      </a>
+    </div>
+  );
+}
+
 export function SamplePapersShowcase() {
   const searchParams = useSearchParams();
   const initial = resolveOlympiad(searchParams.get("olympiad"));
@@ -107,15 +135,12 @@ export function SamplePapersShowcase() {
     useState<SampleOlympiadId>(initial);
   const [level2Olympiad, setLevel2Olympiad] =
     useState<SampleOlympiadId>(initial);
-  const [preview, setPreview] = useState<ActivePaper | null>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const next = resolveOlympiad(searchParams.get("olympiad"));
     setModelOlympiad(next);
     setLevel1Olympiad(next);
     setLevel2Olympiad(next);
-    setPreview(null);
   }, [searchParams]);
 
   const modelPapers = useMemo(
@@ -136,45 +161,6 @@ export function SamplePapersShowcase() {
   const modelMeta = olympiadMeta(modelOlympiad);
   const level1Meta = olympiadMeta(level1Olympiad);
   const level2Meta = olympiadMeta(level2Olympiad);
-
-  useEffect(() => {
-    if (!preview) return;
-    previewRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }, [preview]);
-
-  function actionsCell(paper: ActivePaper) {
-    if (!paper.available) {
-      return (
-        <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
-          PDF coming soon
-        </span>
-      );
-    }
-
-    return (
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setPreview(paper)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover"
-        >
-          <Eye className="size-3.5" aria-hidden />
-          View
-        </button>
-        <a
-          href={paper.href}
-          download={paper.fileName}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-xs font-semibold text-brand hover:border-accent hover:bg-accent-soft"
-        >
-          <Download className="size-3.5" aria-hidden />
-          Download
-        </a>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-10">
@@ -197,10 +183,7 @@ export function SamplePapersShowcase() {
         <OlympiadTabs
           label="Model papers olympiad"
           value={modelOlympiad}
-          onChange={(id) => {
-            setModelOlympiad(id);
-            setPreview(null);
-          }}
+          onChange={setModelOlympiad}
         />
 
         <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-[0_10px_30px_rgba(13,23,59,0.06)]">
@@ -286,10 +269,7 @@ export function SamplePapersShowcase() {
               <OlympiadTabs
                 label={label}
                 value={olympiad}
-                onChange={(id) => {
-                  setOlympiad(id);
-                  setPreview(null);
-                }}
+                onChange={setOlympiad}
               />
               <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-[0_10px_30px_rgba(13,23,59,0.06)]">
                 <table className="w-full min-w-[640px] text-left text-sm">
@@ -338,52 +318,6 @@ export function SamplePapersShowcase() {
           ),
         )}
       </section>
-
-      {preview?.available ? (
-        <div
-          ref={previewRef}
-          id="sample-paper-preview"
-          className="scroll-mt-28 overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_8px_30px_rgba(13,23,59,0.08)]"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-brand-soft px-4 py-3 sm:px-5">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-accent">
-                PDF viewer
-              </p>
-              <h3 className="text-lg font-bold text-brand">
-                {preview.olympiad.toUpperCase()} · {preview.title}
-                {isPreviewPaper(preview)
-                  ? ` · Level ${preview.level} Set ${preview.set}`
-                  : ""}
-              </h3>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <a
-                href={preview.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-sm font-semibold text-brand hover:border-accent"
-              >
-                <Eye className="size-4" aria-hidden />
-                Open in new tab
-              </a>
-              <a
-                href={preview.href}
-                download={preview.fileName}
-                className="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover"
-              >
-                <Download className="size-4" aria-hidden />
-                Download PDF
-              </a>
-            </div>
-          </div>
-          <iframe
-            title={`${preview.title} PDF preview`}
-            src={`${preview.href}#toolbar=1&navpanes=0`}
-            className="h-[70vh] w-full bg-white"
-          />
-        </div>
-      ) : null}
     </div>
   );
 }

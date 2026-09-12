@@ -149,7 +149,7 @@ export function SiteHeader() {
         </div>
       </nav>
 
-      <RegistrationDeadlineBar />
+      {pathname === "/" ? <RegistrationDeadlineBar /> : null}
 
       <div
         className={cn(

@@ -11,17 +11,15 @@ export function BackButton() {
   if (pathname === "/") return null;
 
   return (
-    <div className="w-full bg-surface px-5 pt-4 print:hidden sm:px-8 lg:px-10">
-      <Button
-        type="button"
-        variant="accent"
-        size="lg"
-        onClick={() => router.back()}
-        className="rounded-xl px-5 text-base sm:px-6 sm:text-lg"
-      >
-        <ArrowLeft className="size-5 sm:size-6" aria-hidden />
-        Back
-      </Button>
-    </div>
+    <Button
+      type="button"
+      variant="accent"
+      size="default"
+      onClick={() => router.back()}
+      className="no-print shrink-0 rounded-xl px-3 text-sm sm:px-4 sm:text-base"
+    >
+      <ArrowLeft className="size-4 sm:size-5" aria-hidden />
+      Back
+    </Button>
   );
 }
