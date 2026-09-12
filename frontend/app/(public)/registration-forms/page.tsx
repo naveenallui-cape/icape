@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Download, FileText, MessageCircle } from "lucide-react";
 import { PageShell } from "@/components/public/page-shell";
+import { WHATSAPP_APP_HREF } from "@/lib/registration-announcement";
 
 const forms = [
   {
@@ -75,9 +76,7 @@ export default function RegistrationFormsPage() {
           </ol>
 
           <a
-            href="https://wa.me/918074563902"
-            target="_blank"
-            rel="noopener noreferrer"
+            href={WHATSAPP_APP_HREF}
             className="mt-6 flex max-w-xl flex-col rounded-xl border border-accent/50 bg-surface p-5"
           >
             <MessageCircle className="mb-3 size-6 text-accent" aria-hidden />

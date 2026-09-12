@@ -42,8 +42,10 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.125rem; /* 18px — easier reading for school users */
+  font-size: 1rem; /* 16px — avoid looking zoomed on Windows 125%/150% displays */
   line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 @keyframes marquee {

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google";
 import { Providers } from "@/providers";
 import "./globals.css";
@@ -26,6 +26,11 @@ export const metadata: Metadata = {
     icon: [{ url: "/favicon.png", type: "image/png", sizes: "128x128" }],
     apple: [{ url: "/favicon.png", type: "image/png" }],
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

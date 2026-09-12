@@ -54,7 +54,7 @@ export function SiteHeader() {
             alt="i-CAPE"
             width={72}
             height={72}
-            className="h-14 w-auto object-contain sm:h-16"
+            className="h-9 w-auto object-contain sm:h-11"
             priority
           />
         </Link>
@@ -65,42 +65,42 @@ export function SiteHeader() {
             alt="Vitaran Learning"
             width={160}
             height={56}
-            className="h-12 w-auto object-contain"
+            className="h-8 w-auto object-contain"
             priority
           />
         </div>
 
         <button
           type="button"
-          className="absolute right-4 top-1/2 z-10 inline-flex size-12 -translate-y-1/2 items-center justify-center rounded-md text-brand hover:bg-brand-soft md:hidden"
+          className="absolute right-4 top-1/2 z-10 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-brand hover:bg-brand-soft md:hidden"
           aria-expanded={open}
           aria-controls="mobile-side-nav"
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((prev) => !prev)}
         >
-          {open ? <X className="size-7" /> : <Menu className="size-7" />}
+          {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
 
         {/* Mobile: logo + menu only */}
-        <div className="min-h-[4.75rem] md:hidden" aria-hidden />
+        <div className="min-h-[3.28rem] md:hidden" aria-hidden />
 
         {/* Desktop: title */}
-        <div className="hidden min-h-[5.75rem] items-center justify-center px-36 py-5 md:flex">
-          <p className="text-center text-3xl font-bold tracking-wide text-brand lg:text-4xl">
+        <div className="hidden min-h-[3.97rem] items-center justify-center px-36 py-3.5 md:flex">
+          <p className="text-center text-[1.44rem] font-bold tracking-wide text-brand lg:text-[1.725rem]">
             Innovative Talent Search Examination
           </p>
         </div>
       </div>
 
       {/* Mobile title bar — full width with small side gaps */}
-      <div className="w-full border-b border-brand-stats bg-brand-stats px-1.5 py-2.5 md:hidden">
-        <p className="w-full text-center text-[4.4vw] font-bold leading-none tracking-wide text-white whitespace-nowrap">
+      <div className="w-full border-b border-brand-stats bg-brand-stats px-1.5 py-1.5 md:hidden">
+        <p className="w-full text-center text-[4vw] font-bold leading-none tracking-wide text-white whitespace-nowrap">
           Innovative Talent Search Examination
         </p>
       </div>
 
       <nav className="hidden border-b border-brand-stats bg-brand-stats md:block">
-        <div className="relative mx-auto flex max-w-7xl items-center justify-center px-6 py-2">
+        <div className="relative mx-auto flex max-w-7xl items-center justify-center px-6 py-1">
           <SiteSearch className="absolute left-6 z-10 w-52 lg:w-60" />
 
           <ul className="flex items-center justify-center gap-1 lg:gap-2">
@@ -113,14 +113,14 @@ export function SiteHeader() {
                   <Link
                     href={item.href}
                     className={cn(
-                      "inline-flex items-center gap-1 border-b-2 border-transparent px-3.5 py-2.5 text-xl font-bold text-white/90 hover:text-white",
+                      "inline-flex items-center gap-1 border-b-2 border-transparent px-3 py-1.5 text-base font-bold text-white/90 hover:text-white lg:text-lg",
                       active && "border-accent text-white",
                     )}
                   >
                     {item.label}
                     {hasChildren ? (
                       <ChevronDown
-                        className="size-4 opacity-70 transition group-hover:rotate-180"
+                        className="size-3.5 opacity-70 transition group-hover:rotate-180"
                         aria-hidden
                       />
                     ) : null}

@@ -8,6 +8,7 @@ import {
   Phone,
 } from "lucide-react";
 import { PageShell } from "@/components/public/page-shell";
+import { WHATSAPP_APP_HREF } from "@/lib/registration-announcement";
 
 const contactCards = [
   {
@@ -42,9 +43,7 @@ const contactCards = [
           Send registration forms and payment proof on WhatsApp.
         </p>
         <a
-          href="https://wa.me/918074563902"
-          target="_blank"
-          rel="noopener noreferrer"
+          href={WHATSAPP_APP_HREF}
           className="inline-flex rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-hover"
         >
           Chat on WhatsApp

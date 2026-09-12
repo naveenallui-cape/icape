@@ -14,10 +14,9 @@ import {
   INTRO_POPUP_STORAGE_KEY,
   OLYMPIAD_YEAR_LABEL,
   REGISTRATION_DEADLINE_LABEL,
+  buildWhatsAppAppUrl,
 } from "@/lib/registration-announcement";
 import { cn } from "@/lib/utils";
-
-const WHATSAPP_E164 = "918074563902";
 
 const leadSchema = z.object({
   schoolName: z.string().trim().min(2, "School name is required"),
@@ -50,7 +49,7 @@ function buildWhatsAppUrl(intent: LeadIntent, values: LeadFormValues) {
     `School address: ${values.schoolAddress}`,
   ].join("\n");
 
-  return `https://wa.me/${WHATSAPP_E164}?text=${encodeURIComponent(message)}`;
+  return buildWhatsAppAppUrl(message);
 }
 
 export function WelcomeOlympiadPopup() {
@@ -124,7 +123,7 @@ export function WelcomeOlympiadPopup() {
 
   function onSubmit(values: LeadFormValues) {
     const url = buildWhatsAppUrl(intent, values);
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.location.href = url;
     dismiss(true);
   }
 

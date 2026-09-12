@@ -132,7 +132,7 @@ export function SiteSearch({ className }: { className?: string }) {
             aria-autocomplete="list"
             aria-controls={listId}
             aria-expanded={open && (query.trim().length > 0 || results.length > 0)}
-            className="h-9 border-brand/20 bg-white/90 pl-8 pr-8 text-sm shadow-none focus-visible:ring-brand/25"
+            className="h-7 border-brand/20 bg-white/90 pl-8 pr-8 text-sm shadow-none focus-visible:ring-brand/25"
           />
           {query ? (
             <button
