@@ -1,9 +1,14 @@
 import Link from "next/link";
-
-const message =
-  "Last date for registration: 31st August 2026 · Download forms, pay INR 150 per student per Olympiad, and submit on WhatsApp +91 80745 63902";
+import {
+  OLYMPIAD_YEAR_LABEL,
+  REGISTRATION_DEADLINE_LABEL,
+  REGISTRATION_FEE_LABEL,
+  WHATSAPP_NUMBER,
+} from "@/lib/registration-announcement";
 
 export function RegistrationDeadlineBar() {
+  const message = `Last date for registration: ${REGISTRATION_DEADLINE_LABEL} · Download forms, pay ${REGISTRATION_FEE_LABEL}, and submit on WhatsApp ${WHATSAPP_NUMBER}`;
+
   return (
     <div className="border-b border-accent/40 bg-accent-soft">
       <div className="flex items-center gap-3 px-2 py-2.5 sm:px-4">
@@ -22,7 +27,7 @@ export function RegistrationDeadlineBar() {
                 <span className="mx-3 text-accent" aria-hidden>
                   ★
                 </span>
-                Olympiad Year 2026-27 · IMO · ISO · IEO
+                Olympiad Year {OLYMPIAD_YEAR_LABEL} · IMO · ISO · IEO
                 <span className="mx-3 text-accent" aria-hidden>
                   ★
                 </span>

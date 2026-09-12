@@ -1,4 +1,4 @@
-export const REGISTRATION_DEADLINE_LABEL = "31st August 2026";
+export const REGISTRATION_DEADLINE_LABEL = "30th September 2026";
 export const OLYMPIAD_YEAR_LABEL = "2026-27";
 export const REGISTRATION_FEE_LABEL = "INR 150 per student per Olympiad";
 export const WHATSAPP_NUMBER = "+91 80745 63902";

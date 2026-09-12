@@ -17,8 +17,8 @@ const notices: Notice[] = [
   {
     id: "reg-deadline-2026-27",
     date: "07 Sep 2026",
-    title: "Registration last date — 31st August 2026",
-    body: "Schools must complete registration for Olympiad Year 2026-27 on or before 31st August 2026. Submit filled forms and payment proof to i-CAPE via WhatsApp.",
+    title: "Registration last date — 30th September 2026",
+    body: "Schools must complete registration for Olympiad Year 2026-27 on or before 30th September 2026. Submit filled forms and payment proof to i-CAPE via WhatsApp.",
     href: "/registration-forms",
     hrefLabel: "Download registration forms",
     important: true,

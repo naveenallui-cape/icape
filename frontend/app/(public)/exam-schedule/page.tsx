@@ -41,7 +41,7 @@ export default function ExamSchedulePage() {
           <p>
             The i-CAPE examinations for Olympiad Year 2026-27 will be conducted
             in December 2026. Schools should complete registration on or before{" "}
-            <strong className="text-brand">31st August 2026</strong> so that
+            <strong className="text-brand">30th September 2026</strong> so that
             students can appear for the scheduled olympiads.
           </p>
 
