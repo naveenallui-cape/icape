@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { RegistrationDeadlineBar } from "@/components/layout/registration-deadline-bar";
+import { SiteLoginMenu } from "@/components/layout/site-login-menu";
 import { SiteSearch } from "@/components/layout/site-search";
 import { siteNavItems, type NavItem } from "@/lib/site-nav";
 import { cn } from "@/lib/utils";
@@ -146,6 +147,10 @@ export function SiteHeader() {
               );
             })}
           </ul>
+
+          <div className="absolute right-6 z-10">
+            <SiteLoginMenu />
+          </div>
         </div>
       </nav>
 
@@ -266,6 +271,13 @@ export function SiteHeader() {
                 );
               })}
             </ul>
+
+            <div className="mt-4 border-t border-border pt-4">
+              <SiteLoginMenu
+                compact
+                onNavigate={() => setOpen(false)}
+              />
+            </div>
           </nav>
 
           <div className="border-t border-border bg-brand-soft px-5 py-4">

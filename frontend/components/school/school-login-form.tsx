@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -19,7 +18,6 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function SchoolLoginForm() {
-  const router = useRouter();
   const [error, setError] = useState("");
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -33,8 +31,7 @@ export function SchoolLoginForm() {
       setError(res.message);
       return;
     }
-    router.prefetch("/school/portal");
-    router.replace("/school/portal");
+    window.location.assign("/school/portal");
   }
 
   return (

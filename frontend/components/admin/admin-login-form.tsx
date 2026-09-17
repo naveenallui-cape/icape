@@ -1,18 +1,43 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  ArrowLeft,
+  BarChart3,
+  ClipboardCheck,
+  School,
+  Shield,
+} from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { apiRequest } from "@/lib/api";
+import { OLYMPIAD_YEAR_LABEL } from "@/lib/registration-announcement";
+import { cn } from "@/lib/utils";
+
+const ADMIN_HIGHLIGHTS = [
+  {
+    icon: School,
+    title: "Schools & registrations",
+    text: "Review incomplete and submitted school registrations.",
+  },
+  {
+    icon: ClipboardCheck,
+    title: "Payment verification",
+    text: "Approve or reject registration payments with proof.",
+  },
+  {
+    icon: BarChart3,
+    title: "Results & reports",
+    text: "Upload, update, and publish olympiad results.",
+  },
+] as const;
 
 export function AdminLoginForm() {
-  const router = useRouter();
-  const [email, setEmail] = useState("admin@icape.in");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -33,88 +58,154 @@ export function AdminLoginForm() {
       setError(res.message || "Login failed");
       return;
     }
-    router.replace("/admin/dashboard");
+    const adminName =
+      res.data &&
+      typeof res.data === "object" &&
+      "name" in res.data &&
+      typeof (res.data as { name?: unknown }).name === "string"
+        ? (res.data as { name: string }).name
+        : "Admin";
+    try {
+      sessionStorage.setItem(
+        "icape-admin-session",
+        JSON.stringify({ name: adminName, at: Date.now() }),
+      );
+    } catch {
+      /* ignore */
+    }
+    window.location.assign("/admin/dashboard");
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#070d22] px-4 py-10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(212,175,55,0.18),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.08),transparent_25%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-brand">
+      <div
+        className="pointer-events-none absolute inset-0"
+        aria-hidden
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(212,175,55,0.28),transparent_45%),radial-gradient(ellipse_at_bottom_right,rgba(255,255,255,0.08),transparent_40%)]" />
+        <div className="absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,0.45)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.45)_1px,transparent_1px)] [background-size:48px_48px]" />
+      </div>
 
-      <div className="relative w-full max-w-md rounded-2xl border border-white/15 bg-white/10 p-7 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-8">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <Image
-            src="/brand/icape-logo.webp"
-            alt="i-CAPE"
-            width={72}
-            height={72}
-            className="h-16 w-auto object-contain"
-            priority
-          />
-          <h1 className="mt-4 text-2xl font-bold text-white">Admin Login</h1>
-          <p className="mt-1 text-sm text-white/70">
-            i-CAPE Olympiad Administration Portal
-          </p>
+      <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-8 sm:px-6 lg:py-12">
+        <div className="mb-6 sm:mb-8">
+          <Link
+            href="/"
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "inline-flex border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white",
+            )}
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+            Back to home
+          </Link>
         </div>
 
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-white/85">
-              Email
-            </label>
-            <div className="relative">
-              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/40" />
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="border-white/20 bg-white/95 pl-9"
-                autoComplete="username"
-              />
+        <div className="grid flex-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
+          <section className="text-white">
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-accent">
+              <Shield className="size-3.5" aria-hidden />
+              Secure admin access
             </div>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-white/85">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/40" />
-              <Input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="border-white/20 bg-white/95 pl-9 pr-10"
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-brand/60 hover:text-brand"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? (
-                  <EyeOff className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {error ? (
-            <p className="text-sm font-medium text-red-300" role="alert">
-              {error}
+            <h1 className="mt-4 font-[family-name:var(--font-source-serif)] text-3xl font-bold leading-tight sm:text-4xl lg:text-[2.75rem]">
+              i-CAPE Olympiad
+              <span className="mt-1 block text-accent">
+                Administration Portal
+              </span>
+            </h1>
+            <p className="mt-4 max-w-md text-base leading-relaxed text-white/75 sm:text-lg">
+              Sign in to manage school registrations, verify payments, and
+              publish results for Olympiad Year {OLYMPIAD_YEAR_LABEL}.
             </p>
-          ) : null}
 
-          <Button
-            type="submit"
-            variant="accent"
-            className="w-full"
-            disabled={loading}
-          >
-            {loading ? "Signing in…" : "Sign in"}
-          </Button>
-        </form>
+            <ul className="mt-8 space-y-4">
+              {ADMIN_HIGHLIGHTS.map((item) => (
+                <li key={item.title} className="flex gap-3">
+                  <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent">
+                    <item.icon className="size-5" aria-hidden />
+                  </span>
+                  <div>
+                    <p className="font-bold text-white">{item.title}</p>
+                    <p className="mt-0.5 text-sm text-white/65">{item.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-surface p-6 shadow-[0_24px_60px_rgba(0,0,0,0.28)] sm:p-8">
+            <div className="flex flex-col items-center text-center">
+              <Image
+                src="/brand/icape-logo.webp"
+                alt="i-CAPE"
+                width={80}
+                height={80}
+                className="h-16 w-auto object-contain sm:h-[4.5rem]"
+                priority
+              />
+              <h2 className="mt-4 font-[family-name:var(--font-source-serif)] text-2xl font-bold text-brand sm:text-3xl">
+                Admin Login
+              </h2>
+              <div className="mx-auto mt-2 h-0.5 w-24 bg-accent" aria-hidden />
+              <p className="mt-3 text-sm text-muted sm:text-base">
+                Enter your admin email and password to continue
+              </p>
+            </div>
+
+            <form className="mt-8 space-y-4" onSubmit={onSubmit} noValidate>
+              <div>
+                <label
+                  htmlFor="admin-email"
+                  className="mb-1.5 block text-sm font-semibold text-brand"
+                >
+                  Email
+                </label>
+                <Input
+                  id="admin-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  autoComplete="username"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="admin-password"
+                  className="mb-1.5 block text-sm font-semibold text-brand"
+                >
+                  Password
+                </label>
+                <PasswordInput
+                  id="admin-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  autoComplete="current-password"
+                />
+              </div>
+
+              {error ? (
+                <p className="text-sm font-medium text-red-600" role="alert">
+                  {error}
+                </p>
+              ) : null}
+
+              <Button
+                type="submit"
+                variant="accent"
+                className="w-full"
+                disabled={loading}
+              >
+                {loading ? "Signing in…" : "Sign in"}
+              </Button>
+            </form>
+
+            <p className="mt-6 text-center text-xs text-muted">
+              Authorised i-CAPE staff only. Unauthorised access is prohibited.
+            </p>
+          </section>
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   OLYMPIAD_YEAR_LABEL,
   REGISTRATION_DEADLINE_LABEL,
@@ -35,13 +34,6 @@ export function RegistrationDeadlineBar() {
             ))}
           </div>
         </div>
-
-        <Link
-          href="/registration-forms"
-          className="hidden shrink-0 rounded-full bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-hover sm:inline-flex sm:text-sm"
-        >
-          Register now
-        </Link>
       </div>
     </div>
   );

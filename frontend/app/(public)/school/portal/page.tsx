@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode 
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2, Check, CheckCircle2, ChevronRight, Clock, LogOut, Plus, QrCode, Trash2, X } from "lucide-react";
+import { Building2, Check, CheckCircle2, ChevronRight, Clock, Plus, QrCode, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PAYMENT_DETAILS, PAYMENT_METHODS, paymentReferenceField, type PaymentMethod } from "@/lib/payment-details";
@@ -28,7 +28,6 @@ import {
   saveSchoolStep2,
   saveSchoolStep3,
   checkPaymentReference,
-  schoolLogout,
   studentTemplateUrl,
   uploadPaymentProofFile,
   type RegistrationStudent,
@@ -680,11 +679,6 @@ export default function SchoolPortalPage() {
     };
   }, [draftStudents, step, locked]);
 
-  async function onLogout() {
-    await schoolLogout();
-    router.replace("/school/login");
-  }
-
   async function onSaveStep1(values: SchoolFormValues) {
     setError("");
     setSaving(true);
@@ -1013,12 +1007,12 @@ export default function SchoolPortalPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
-      <div className="grid items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-brand sm:text-3xl">
           {reg?.status === "APPROVED" ? "School Portal" : "Registration portal"}
         </h1>
         {(reg?.schoolName || reg?.schoolCode) ? (
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1 text-[1.225rem] leading-snug text-muted">
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-1 text-[1.225rem] leading-snug text-muted sm:justify-end">
             {reg.schoolName ? (
               <p>
                 School Name:{" "}
@@ -1036,15 +1030,7 @@ export default function SchoolPortalPage() {
               </p>
             ) : null}
           </div>
-        ) : (
-          <div />
-        )}
-        <div className="sm:justify-self-end">
-          <Button type="button" variant="outline" onClick={onLogout}>
-            <LogOut className="size-4" aria-hidden />
-            Log out
-          </Button>
-        </div>
+        ) : null}
       </div>
 
       {reg?.status === "UNDER_REVIEW" ? (
