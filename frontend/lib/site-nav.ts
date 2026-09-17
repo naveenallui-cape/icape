@@ -59,6 +59,15 @@ export type HomeCard = {
 
 export const homeCards: HomeCard[] = [
   {
+    title: "ONLINE SCHOOL REGISTRATION & LOGIN",
+    description:
+      "Create a school account, fill school & student details, and submit payment online for Olympiad Year 2026-27.",
+    href: "/school/login",
+    image:
+      "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&h=500&fit=crop&q=80",
+    imageAlt: "Person completing online school registration on a laptop",
+  },
+  {
     title: "DOWNLOAD REGISTRATION FORMS",
     description:
       "Download School & Student Registration Forms For Olympiad Year 2026-27",
@@ -136,15 +145,6 @@ export const homeCards: HomeCard[] = [
     image:
       "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=800&h=500&fit=crop&q=80",
     imageAlt: "Student taking an exam representing results",
-  },
-  {
-    title: "NOTICE BOARD",
-    description:
-      "Latest important notices, deadlines, and official updates from i-CAPE.",
-    href: "/notice-board",
-    image:
-      "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&h=500&fit=crop&q=80",
-    imageAlt: "Notice board with important announcements and updates",
   },
 ];
 

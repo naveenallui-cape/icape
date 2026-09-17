@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Building2, QrCode } from "lucide-react";
 import { PageShell } from "@/components/public/page-shell";
+import { PAYMENT_DETAILS } from "@/lib/payment-details";
 
 export default function RegistrationFeePage() {
   return (
@@ -12,9 +13,7 @@ export default function RegistrationFeePage() {
         <div className="max-w-3xl space-y-4 text-base leading-relaxed text-foreground sm:text-lg">
           <p>
             Schools are required to remit a registration fee of{" "}
-            <strong className="text-brand">
-              INR 150 per student per Olympiad
-            </strong>{" "}
+            <strong className="text-brand">{PAYMENT_DETAILS.feeLabel}</strong>{" "}
             to i-CAPE (Innovative Talent Search Examination).
           </p>
           <p className="text-muted">
@@ -36,14 +35,20 @@ export default function RegistrationFeePage() {
           <div className="mt-2 h-0.5 w-14 bg-accent" aria-hidden />
           <div className="mt-4 max-w-3xl space-y-4 text-base leading-relaxed text-muted sm:text-lg">
             <p>
-              Participating schools should submit completed school and student
+              Prefer online registration? Use{" "}
+              <a
+                href="/school/login"
+                className="font-semibold text-brand hover:underline"
+              >
+                Online School Registration & Login
+              </a>{" "}
+              to submit school details, students, and payment proof.
+            </p>
+            <p>
+              Participating schools may also submit completed school and student
               registration forms along with payment to i-CAPE. Please quote your
               School Code (unique identifier assigned to each school) when
               remitting payment.
-            </p>
-            <p>
-              If you are unsure about your school code, contact i-CAPE by phone
-              or email using the details in the footer.
             </p>
           </div>
         </div>
@@ -64,7 +69,7 @@ export default function RegistrationFeePage() {
                 Online Transfer (NEFT/RTGS/IMPS):
               </strong>{" "}
               Transfer to the bank account listed below and share the transaction
-              reference with your registration forms.
+              reference with your registration.
             </li>
           </ol>
         </div>
@@ -84,7 +89,7 @@ export default function RegistrationFeePage() {
             </div>
             <div className="max-w-[220px] overflow-hidden rounded-lg border border-border bg-white p-2">
               <Image
-                src="/brand/payment-qr.png"
+                src={PAYMENT_DETAILS.qrPath}
                 alt="Scan this QR code for online payment"
                 width={400}
                 height={400}
@@ -100,30 +105,40 @@ export default function RegistrationFeePage() {
               </span>
               <div>
                 <h3 className="text-xl font-bold text-brand">Bank Transfer</h3>
-                <p className="text-sm text-muted">IDFC FIRST BANK</p>
+                <p className="text-sm text-muted">{PAYMENT_DETAILS.bank.name}</p>
               </div>
             </div>
 
             <dl className="space-y-3 text-base">
               <div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2">
                 <dt className="text-muted">Bank</dt>
-                <dd className="font-semibold text-brand">IDFC FIRST BANK</dd>
+                <dd className="font-semibold text-brand">
+                  {PAYMENT_DETAILS.bank.name}
+                </dd>
               </div>
               <div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2">
                 <dt className="text-muted">IFSC</dt>
-                <dd className="font-semibold text-brand">IDFB0080243</dd>
+                <dd className="font-semibold text-brand">
+                  {PAYMENT_DETAILS.bank.ifsc}
+                </dd>
               </div>
               <div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2">
                 <dt className="text-muted">Account type</dt>
-                <dd className="font-semibold text-brand">Current</dd>
+                <dd className="font-semibold text-brand">
+                  {PAYMENT_DETAILS.bank.accountType}
+                </dd>
               </div>
               <div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2">
                 <dt className="text-muted">A/C No.</dt>
-                <dd className="font-semibold text-brand">10249756617</dd>
+                <dd className="font-semibold text-brand">
+                  {PAYMENT_DETAILS.bank.accountNumber}
+                </dd>
               </div>
               <div className="flex flex-wrap justify-between gap-2">
                 <dt className="text-muted">Branch</dt>
-                <dd className="font-semibold text-brand">Begumpet</dd>
+                <dd className="font-semibold text-brand">
+                  {PAYMENT_DETAILS.bank.branch}
+                </dd>
               </div>
             </dl>
           </article>

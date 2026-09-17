@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -15,6 +16,7 @@ import {
   OLYMPIAD_YEAR_LABEL,
   REGISTRATION_DEADLINE_LABEL,
   buildWhatsAppAppUrl,
+  isRegistrationOpen,
 } from "@/lib/registration-announcement";
 import { cn } from "@/lib/utils";
 
@@ -53,13 +55,14 @@ function buildWhatsAppUrl(intent: LeadIntent, values: LeadFormValues) {
 }
 
 export function WelcomeOlympiadPopup() {
+  const router = useRouter();
   const titleId = useId();
   const descId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"home" | "form">("home");
-  const [intent, setIntent] = useState<LeadIntent>("registration");
+  const [intent, setIntent] = useState<LeadIntent>("enquiry");
 
   const form = useForm<LeadFormValues>({
     resolver: zodResolver(leadSchema),
@@ -73,6 +76,16 @@ export function WelcomeOlympiadPopup() {
   });
 
   useEffect(() => {
+    // Never show on school portal / auth pages
+    if (window.location.pathname.startsWith("/school")) {
+      return;
+    }
+
+    // Auto-off after registration last date
+    if (!isRegistrationOpen()) {
+      return;
+    }
+
     try {
       if (window.localStorage.getItem(INTRO_POPUP_STORAGE_KEY) === "1") {
         return;
@@ -119,6 +132,11 @@ export function WelcomeOlympiadPopup() {
     setIntent(nextIntent);
     setStep("form");
     form.clearErrors();
+  }
+
+  function goToSchoolLogin() {
+    dismiss(true);
+    router.push("/school/login");
   }
 
   function onSubmit(values: LeadFormValues) {
@@ -342,9 +360,9 @@ export function WelcomeOlympiadPopup() {
                   type="button"
                   variant="accent"
                   className="min-w-0 flex-1 text-xs sm:text-sm"
-                  onClick={() => openForm("registration")}
+                  onClick={goToSchoolLogin}
                 >
-                  Online school registration
+                  Online school registration & login
                 </Button>
                 <Button
                   type="button"

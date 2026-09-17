@@ -1,10 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/api";
+import { AdminSearchField } from "@/components/admin/admin-search-field";
 import { RESULT_GRADES, RESULT_OLYMPIADS } from "@/lib/results";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 type AdminResultRow = {
   id: string;
@@ -35,33 +36,10 @@ export default function AdminResultsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [yearOptions, setYearOptions] = useState<string[]>([]);
+  const debouncedQ = useDebouncedValue(q, 300);
+  const appliedQ = debouncedQ.trim();
 
-  async function load(nextPage = page) {
-    setLoading(true);
-    setError("");
-    const params = new URLSearchParams({
-      page: String(nextPage),
-      limit: "25",
-    });
-    if (q.trim()) params.set("q", q.trim());
-    if (olympiad) params.set("olympiad", olympiad);
-    if (olympiadYear.trim()) params.set("olympiadYear", olympiadYear.trim());
-    if (grade) params.set("grade", grade);
-    const res = await apiRequest<{
-      results: AdminResultRow[];
-      pagination: { totalPages: number; total: number; page: number };
-    }>(`/results/admin/list?${params.toString()}`);
-    setLoading(false);
-    if (!res.success || !res.data) {
-      setError(res.message);
-      setRows([]);
-      return;
-    }
-    setRows(res.data.results);
-    setTotalPages(res.data.pagination.totalPages);
-    setTotal(res.data.pagination.total);
-    setPage(res.data.pagination.page);
-  }
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     void (async () => {
@@ -72,14 +50,44 @@ export default function AdminResultsPage() {
         setYearOptions(meta.data.years.map((y) => y.label));
       }
     })();
-    void load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function onSearch(e: FormEvent) {
-    e.preventDefault();
-    await load(1);
-  }
+  useEffect(() => {
+    setPage(1);
+  }, [appliedQ, olympiad, olympiadYear, grade]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError("");
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: "25",
+      });
+      if (appliedQ) params.set("q", appliedQ);
+      if (olympiad) params.set("olympiad", olympiad);
+      if (olympiadYear.trim()) params.set("olympiadYear", olympiadYear.trim());
+      if (grade) params.set("grade", grade);
+      const res = await apiRequest<{
+        results: AdminResultRow[];
+        pagination: { totalPages: number; total: number; page: number };
+      }>(`/results/admin/list?${params.toString()}`);
+      if (cancelled) return;
+      setLoading(false);
+      if (!res.success || !res.data) {
+        setError(res.message);
+        setRows([]);
+        return;
+      }
+      setRows(res.data.results);
+      setTotalPages(res.data.pagination.totalPages);
+      setTotal(res.data.pagination.total);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [page, appliedQ, olympiad, olympiadYear, grade, reloadToken]);
 
   async function onDelete(id: string) {
     if (!window.confirm("Delete this result record?")) return;
@@ -88,23 +96,20 @@ export default function AdminResultsPage() {
       setError(res.message);
       return;
     }
-    await load(page);
+    setReloadToken((n) => n + 1);
   }
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-brand">Results</h1>
-        <p className="text-muted">Search and manage olympiad result records.</p>
+        <p className="text-muted">Filter and manage olympiad result records.</p>
       </div>
 
-      <form
-        onSubmit={onSearch}
-        className="grid gap-3 rounded-2xl border border-border bg-white p-4 sm:grid-cols-5"
-      >
-        <Input
+      <div className="grid gap-3 rounded-2xl border border-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <AdminSearchField
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={setQ}
           placeholder="Reg no / student name"
         />
         <select
@@ -143,10 +148,7 @@ export default function AdminResultsPage() {
             </option>
           ))}
         </select>
-        <Button type="submit" variant="accent">
-          Search
-        </Button>
-      </form>
+      </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
@@ -225,16 +227,16 @@ export default function AdminResultsPage() {
           <Button
             type="button"
             variant="outline"
-            disabled={page <= 1}
-            onClick={() => void load(page - 1)}
+            disabled={page <= 1 || loading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
             Previous
           </Button>
           <Button
             type="button"
             variant="outline"
-            disabled={page >= totalPages}
-            onClick={() => void load(page + 1)}
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage((p) => p + 1)}
           >
             Next
           </Button>

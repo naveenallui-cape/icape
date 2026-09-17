@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useState } from "react";
 import {
   Award,
   BarChart3,
+  ClipboardList,
+  ClipboardPlus,
   FilePenLine,
   FileUp,
   LayoutDashboard,
@@ -13,8 +15,8 @@ import {
   Menu,
   School,
   Settings,
-  Trophy,
   Users,
+  WalletCards,
   X,
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
@@ -24,8 +26,22 @@ import { Button } from "@/components/ui/button";
 const nav = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/schools", label: "Schools", icon: School },
+  {
+    href: "/admin/schools/register",
+    label: "Register school",
+    icon: ClipboardPlus,
+  },
+  {
+    href: "/admin/incomplete-registrations",
+    label: "Incomplete registrations",
+    icon: ClipboardList,
+  },
+  {
+    href: "/admin/registrations",
+    label: "Payment verification",
+    icon: WalletCards,
+  },
   { href: "/admin/students", label: "Students", icon: Users },
-  { href: "/admin/olympiads", label: "Olympiads", icon: Trophy },
   { href: "/admin/results", label: "Results", icon: BarChart3 },
   { href: "/admin/results/upload", label: "Upload Results", icon: FileUp },
   { href: "/admin/results/update", label: "Update Results", icon: FilePenLine },
@@ -37,6 +53,9 @@ const nav = [
 
 const ADMIN_CACHE_KEY = "icape-admin-session";
 
+/** Survives AdminShell remounts within the same tab session (no full-page flash). */
+let warmAdminSession: { name: string } | null = null;
+
 function readAdminCache(): { name: string } | null {
   if (typeof window === "undefined") return null;
   try {
@@ -44,7 +63,6 @@ function readAdminCache(): { name: string } | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { name?: string; at?: number };
     if (!parsed?.name || !parsed.at) return null;
-    // Keep UI warm for 60 minutes; still revalidated in background
     if (Date.now() - parsed.at > 60 * 60 * 1000) return null;
     return { name: parsed.name };
   } catch {
@@ -53,6 +71,7 @@ function readAdminCache(): { name: string } | null {
 }
 
 function writeAdminCache(name: string) {
+  warmAdminSession = { name };
   try {
     sessionStorage.setItem(
       ADMIN_CACHE_KEY,
@@ -64,6 +83,7 @@ function writeAdminCache(name: string) {
 }
 
 function clearAdminCache() {
+  warmAdminSession = null;
   try {
     sessionStorage.removeItem(ADMIN_CACHE_KEY);
   } catch {
@@ -75,9 +95,14 @@ function isNavActive(href: string, pathname: string) {
   if (href === "/admin/results") {
     return pathname === "/admin/results";
   }
+  if (href === "/admin/schools") {
+    return pathname === "/admin/schools";
+  }
   if (
     href === "/admin/results/upload" ||
-    href === "/admin/results/update"
+    href === "/admin/results/update" ||
+    href === "/admin/schools/register" ||
+    href === "/admin/incomplete-registrations"
   ) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
@@ -88,27 +113,39 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  // Must match SSR: never read sessionStorage during render (hydration-safe)
-  const [ready, setReady] = useState(false);
-  const [adminName, setAdminName] = useState("Admin");
+  const [ready, setReady] = useState(() => warmAdminSession !== null);
+  const [adminName, setAdminName] = useState(
+    () => warmAdminSession?.name ?? "Admin",
+  );
+  const [verifying, setVerifying] = useState(false);
+
+  useLayoutEffect(() => {
+    if (warmAdminSession) {
+      setAdminName(warmAdminSession.name);
+      setReady(true);
+      return;
+    }
+    const cached = readAdminCache();
+    if (cached) {
+      warmAdminSession = cached;
+      setAdminName(cached.name);
+      setReady(true);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    const cached = readAdminCache();
-    if (cached) {
-      setAdminName(cached.name);
-      setReady(true);
-    }
-
     async function check() {
+      if (!warmAdminSession && !readAdminCache()) {
+        setVerifying(true);
+      }
       const res = await apiRequest<{ name: string }>("/auth/me");
       if (cancelled) return;
+      setVerifying(false);
       if (!res.success) {
-        // Only force logout on real auth failures — not transient network errors
-        // (backend restart, Failed to fetch, etc.)
         if (res.networkError) {
-          if (!cached) setReady(true);
+          setReady(true);
           return;
         }
         if (res.status === 401 || res.message === "Unauthorized") {
@@ -117,7 +154,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           router.replace("/admin/login");
           return;
         }
-        if (!cached) setReady(true);
+        setReady(true);
         return;
       }
       const name = res.data?.name ?? "Admin";
@@ -140,7 +177,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0b1228] text-white">
-        Loading admin…
+        <div className="text-center">
+          <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-white/20 border-t-accent" />
+          <p className="text-sm text-white/80">Opening admin…</p>
+        </div>
       </div>
     );
   }
@@ -156,7 +196,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-4">
           <div className="min-w-0">
             <p className="truncate text-base font-bold">i-CAPE Admin</p>
-            <p className="truncate text-xs text-white/60">{adminName}</p>
+            <p className="truncate text-xs text-white/60">
+              {adminName}
+              {verifying ? " · syncing" : ""}
+            </p>
           </div>
           <button
             type="button"
@@ -175,6 +218,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch
                 onClick={() => setOpen(false)}
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition",
@@ -203,18 +247,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-col md:pl-[11.7rem]">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-white px-4 py-3 md:px-6">
-          <button
-            type="button"
-            className="rounded-md p-2 text-brand hover:bg-brand-soft md:hidden"
-            onClick={() => setOpen(true)}
-            aria-label="Open sidebar"
-          >
-            <Menu className="size-5" />
-          </button>
-          <p className="font-semibold text-brand">Administration Portal</p>
-        </header>
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <button
+          type="button"
+          className="fixed left-3 top-3 z-20 rounded-md border border-border bg-white p-2 text-brand shadow-sm hover:bg-brand-soft md:hidden"
+          onClick={() => setOpen(true)}
+          aria-label="Open sidebar"
+        >
+          <Menu className="size-5" />
+        </button>
+        <main className="flex-1 p-4 pt-14 md:p-6 md:pt-6">{children}</main>
       </div>
 
       {open ? (

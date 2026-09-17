@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { LIVE_DATA_REFETCH_MS } from "@/lib/live-refresh";
 
 type QueryProviderProps = {
   children: ReactNode;
@@ -13,12 +14,15 @@ export function QueryProvider({ children }: QueryProviderProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000,
-            refetchOnWindowFocus: false,
+            // Keep lists warm between navigations; live pages still poll.
+            staleTime: LIVE_DATA_REFETCH_MS,
+            gcTime: 30 * 60 * 1000,
+            refetchOnWindowFocus: true,
+            refetchOnReconnect: true,
             retry: 1,
           },
         },
-      })
+      }),
   );
 
   return (
