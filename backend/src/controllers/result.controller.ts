@@ -118,6 +118,31 @@ export const publicResultController = {
 };
 
 export const adminResultController = {
+  async getPublication(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await resultService.getPublication();
+      res.json({ success: true, message: "Publication status", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async setPublication(req: Request, res: Response, next: NextFunction) {
+    try {
+      const published = Boolean(req.body?.published);
+      const data = await resultService.setPublication(published);
+      res.json({
+        success: true,
+        message: published
+          ? "Results are now published for schools and public lookup"
+          : "Results are unpublished — schools and public cannot view them",
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async list(req: Request, res: Response, next: NextFunction) {
     try {
       const query = adminResultsQuerySchema.parse(req.query);

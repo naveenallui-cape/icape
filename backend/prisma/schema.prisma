@@ -42,6 +42,14 @@ model Admin {
   studentExportJobs StudentExportJob[]
 }
 
+/// Single-row switch: public/school result lookup only when published
+model ResultPublication {
+  id          String    @id @default("default")
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
 model Olympiad {
   id          String       @id @default(cuid())
   code        OlympiadCode @unique

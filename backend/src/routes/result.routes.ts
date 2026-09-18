@@ -59,6 +59,16 @@ resultRouter.get(
 );
 
 // Admin — no rate limiting
+resultRouter.get(
+  "/admin/publication",
+  requireAdmin,
+  adminResultController.getPublication,
+);
+resultRouter.patch(
+  "/admin/publication",
+  requireAdmin,
+  adminResultController.setPublication,
+);
 resultRouter.get("/admin/list", requireAdmin, adminResultController.list);
 resultRouter.post(
   "/admin/manual",

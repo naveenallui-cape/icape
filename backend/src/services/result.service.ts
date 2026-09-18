@@ -23,6 +23,11 @@ import {
   OLYMPIAD_YEAR_META,
   listOlympiadYears,
 } from "../lib/olympiad-year";
+import {
+  assertResultsPublished,
+  getResultPublication,
+  setResultsPublished,
+} from "../lib/result-publication";
 
 function schoolCodeFromName(name: string) {
   const base = name
@@ -80,6 +85,8 @@ export const resultService = {
     grade: number;
     olympiadYear?: string;
   }): Promise<StudentResultsPayload> {
+    await assertResultsPublished();
+
     const reg = normalizeRegistrationNumber(input.registrationNumber);
     const version = await resultCache.getVersion();
     const cacheKey = resultCache.studentKey(
@@ -152,6 +159,8 @@ export const resultService = {
     olympiadYear?: string;
     limit: number;
   }) {
+    await assertResultsPublished();
+
     const version = await resultCache.getVersion();
     const cacheKey = resultCache.schoolSearchKey(
       version,
@@ -188,6 +197,8 @@ export const resultService = {
     page: number;
     limit: number;
   }) {
+    await assertResultsPublished();
+
     const studentKey = (input.student || "").trim().toLowerCase() || "ALL";
     const schoolKey = input.schoolId || input.schoolCode || "";
     const version = await resultCache.getVersion();
@@ -318,6 +329,8 @@ export const resultService = {
       limit: number;
     },
   ) {
+    await assertResultsPublished();
+
     const regForYear = await prisma.schoolRegistration.findFirst({
       where: {
         schoolAccountId: accountId,
@@ -363,8 +376,10 @@ export const resultService = {
         schoolCode,
       });
     } catch (err) {
+      // Unpublished / forbidden must surface to the school portal
+      if (err instanceof AppError && err.statusCode === 403) throw err;
       if (err instanceof AppError && err.statusCode === 404) {
-        // Registration exists but no result School row / published data yet
+        // Registration exists but no result School row yet
         return {
           school: {
             schoolCode,
@@ -761,13 +776,29 @@ export const resultService = {
     const cached = await resultCache.get<{
       olympiads: unknown;
       years: unknown;
+      resultsPublished: boolean;
     }>(cacheKey);
     if (cached) return cached;
 
-    const olympiads = await olympiadRepository.list();
-    const payload = { olympiads, years: listOlympiadYears() };
+    const [olympiads, publication] = await Promise.all([
+      olympiadRepository.list(),
+      getResultPublication(),
+    ]);
+    const payload = {
+      olympiads,
+      years: listOlympiadYears(),
+      resultsPublished: publication.published,
+    };
     await resultCache.set(cacheKey, payload, 300);
     return payload;
+  },
+
+  getPublication() {
+    return getResultPublication();
+  },
+
+  setPublication(published: boolean) {
+    return setResultsPublished(published);
   },
 };
 
