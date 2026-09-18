@@ -78,7 +78,7 @@ export const manualResultRowSchema = z.object({
     .trim()
     .transform((v) => v.toUpperCase())
     .pipe(z.enum(OLYMPIAD_CODES)),
-  olympiadYear: z.string().trim().min(1, "Olympiad Year required"),
+  olympiadYear: z.string().trim().optional(),
   marksObtained: z.coerce.number().min(0),
   totalMarks: z.coerce.number().positive().optional(),
   rank: z

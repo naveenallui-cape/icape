@@ -42,28 +42,6 @@ model Admin {
   studentExportJobs StudentExportJob[]
 }
 
-model OlympiadYear {
-  id        String   @id @default(cuid())
-  /// Display label e.g. "2025-26"
-  label     String   @unique
-  /// Canonical e.g. "2025-2026"
-  code      String   @unique
-  isActive  Boolean  @default(false)
-  /// When true, public result lookup is allowed
-  published Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  schools             School[]
-  students            Student[]
-  results             Result[]
-  uploads             ResultUpload[]
-  schoolRegistrations SchoolRegistration[]
-
-  @@index([published])
-  @@index([isActive])
-}
-
 model Olympiad {
   id          String       @id @default(cuid())
   code        OlympiadCode @unique
@@ -77,25 +55,25 @@ model Olympiad {
 }
 
 model School {
-  id             String       @id @default(cuid())
+  id           String   @id @default(cuid())
   /// Public school code / School ID used in forms (e.g. ICAPE-HYD-001)
-  schoolCode     String
-  name           String
-  city           String?
-  state          String?
-  olympiadYearId String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  schoolCode   String
+  name         String
+  city         String?
+  state        String?
+  /// Olympiad Year label e.g. "2026-2027" (no lookup table)
+  olympiadYear String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  olympiadYear OlympiadYear @relation(fields: [olympiadYearId], references: [id], onDelete: Restrict)
-  students     Student[]
-  results      Result[]
+  students Student[]
+  results  Result[]
 
-  @@unique([schoolCode, olympiadYearId])
-  @@index([olympiadYearId])
+  @@unique([schoolCode, olympiadYear])
+  @@index([olympiadYear])
   @@index([name])
   @@index([schoolCode])
-  @@index([olympiadYearId, name])
+  @@index([olympiadYear, name])
 }
 
 model Student {
@@ -104,85 +82,85 @@ model Student {
   name               String
   grade              Int
   schoolId           String
-  olympiadYearId     String
+  /// Olympiad Year label e.g. "2026-2027"
+  olympiadYear       String
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  school       School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  olympiadYear OlympiadYear @relation(fields: [olympiadYearId], references: [id], onDelete: Restrict)
-  results      Result[]
+  school  School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  results Result[]
 
-  @@unique([registrationNumber, olympiadYearId])
+  @@unique([registrationNumber, olympiadYear])
   @@index([registrationNumber])
   @@index([schoolId])
   @@index([grade])
-  @@index([olympiadYearId])
-  @@index([olympiadYearId, grade])
+  @@index([olympiadYear])
+  @@index([olympiadYear, grade])
   @@index([schoolId, grade])
 }
 
 model Result {
-  id              String       @id @default(cuid())
-  studentId       String
-  schoolId        String
-  olympiadId      String
-  olympiadYearId  String
-  grade           Int
-  marksObtained   Decimal      @db.Decimal(8, 2)
-  totalMarks      Decimal      @db.Decimal(8, 2)
-  percentage      Decimal      @db.Decimal(6, 2)
-  rank            Int?
-  schoolRank      Int?
-  status          ResultStatus @default(PARTICIPATED)
-  certificateUrl  String?
-  certificateNo   String?
-  examDate        DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  school       School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  olympiad     Olympiad     @relation(fields: [olympiadId], references: [id], onDelete: Restrict)
-  olympiadYear OlympiadYear @relation(fields: [olympiadYearId], references: [id], onDelete: Restrict)
-
-  /// One result per student + olympiad + year
-  @@unique([studentId, olympiadId, olympiadYearId])
-  @@index([studentId])
-  @@index([olympiadId])
-  @@index([olympiadYearId])
-  @@index([schoolId])
-  @@index([grade])
-  @@index([status])
-  @@index([studentId, olympiadYearId])
-  @@index([olympiadId, olympiadYearId, grade])
-  @@index([schoolId, olympiadId, grade, olympiadYearId])
-  @@index([schoolId, olympiadYearId, olympiadId])
-  @@index([olympiadYearId, schoolId, grade])
-}
-
-model ResultUpload {
   id             String       @id @default(cuid())
-  fileName       String
+  studentId      String
+  schoolId       String
   olympiadId     String
-  olympiadYearId String
-  grade          Int?
-  totalRows      Int          @default(0)
-  validRows      Int          @default(0)
-  invalidRows    Int          @default(0)
-  duplicateRows  Int          @default(0)
-  importedRows   Int          @default(0)
-  status         UploadStatus @default(PROCESSING)
-  uploadedById   String
-  errorSummary   String?
+  /// Olympiad Year label e.g. "2026-2027"
+  olympiadYear   String
+  grade          Int
+  marksObtained  Decimal      @db.Decimal(8, 2)
+  totalMarks     Decimal      @db.Decimal(8, 2)
+  percentage     Decimal      @db.Decimal(6, 2)
+  rank           Int?
+  schoolRank     Int?
+  status         ResultStatus @default(PARTICIPATED)
+  certificateUrl String?
+  certificateNo  String?
+  examDate       DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  olympiad     Olympiad            @relation(fields: [olympiadId], references: [id], onDelete: Restrict)
-  olympiadYear OlympiadYear        @relation(fields: [olympiadYearId], references: [id], onDelete: Restrict)
-  uploadedBy   Admin               @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
-  errors       ResultUploadError[]
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  school   School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  olympiad Olympiad @relation(fields: [olympiadId], references: [id], onDelete: Restrict)
 
-  @@index([olympiadYearId])
+  /// One result per student + olympiad + year
+  @@unique([studentId, olympiadId, olympiadYear])
+  @@index([studentId])
+  @@index([olympiadId])
+  @@index([olympiadYear])
+  @@index([schoolId])
+  @@index([grade])
+  @@index([status])
+  @@index([studentId, olympiadYear])
+  @@index([olympiadId, olympiadYear, grade])
+  @@index([schoolId, olympiadId, grade, olympiadYear])
+  @@index([schoolId, olympiadYear, olympiadId])
+  @@index([olympiadYear, schoolId, grade])
+}
+
+model ResultUpload {
+  id           String       @id @default(cuid())
+  fileName     String
+  olympiadId   String
+  /// Olympiad Year label e.g. "2026-2027"
+  olympiadYear String
+  grade        Int?
+  totalRows    Int          @default(0)
+  validRows    Int          @default(0)
+  invalidRows  Int          @default(0)
+  duplicateRows Int         @default(0)
+  importedRows Int          @default(0)
+  status       UploadStatus @default(PROCESSING)
+  uploadedById String
+  errorSummary String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  olympiad   Olympiad            @relation(fields: [olympiadId], references: [id], onDelete: Restrict)
+  uploadedBy Admin               @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  errors     ResultUploadError[]
+
+  @@index([olympiadYear])
   @@index([olympiadId])
   @@index([status])
   @@index([uploadedById])
@@ -255,7 +233,8 @@ model PasswordResetToken {
 model SchoolRegistration {
   id              String             @id @default(cuid())
   schoolAccountId String
-  olympiadYearId  String
+  /// Olympiad Year label e.g. "2026-2027"
+  olympiadYear    String
   status          RegistrationStatus @default(DRAFT)
   currentStep     Int                @default(1)
   /// Matches School Registration Form fields
@@ -297,15 +276,14 @@ model SchoolRegistration {
   updatedAt       DateTime           @updatedAt
 
   schoolAccount SchoolAccount          @relation(fields: [schoolAccountId], references: [id], onDelete: Cascade)
-  olympiadYear  OlympiadYear           @relation(fields: [olympiadYearId], references: [id], onDelete: Restrict)
   students      RegistrationStudent[]
   payment       RegistrationPayment?
 
-  @@unique([schoolAccountId, olympiadYearId])
-  @@unique([schoolCode, olympiadYearId])
-  @@index([olympiadYearId])
+  @@unique([schoolAccountId, olympiadYear])
+  @@unique([schoolCode, olympiadYear])
+  @@index([olympiadYear])
   @@index([status])
-  @@index([olympiadYearId, status])
+  @@index([olympiadYear, status])
   @@index([schoolAccountId])
   @@index([schoolCode])
 }

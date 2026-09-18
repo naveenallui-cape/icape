@@ -9,6 +9,7 @@ import {
 import { AppError } from "../middleware/error.middleware";
 import { authService, resultService } from "../services/result.service";
 import { uploadService } from "../services/upload.service";
+import { CURRENT_OLYMPIAD_YEAR } from "../lib/olympiad-year";
 import {
   adminLoginSchema,
   adminResultsQuerySchema,
@@ -182,18 +183,16 @@ export const adminResultController = {
       if (!file) throw new AppError("Excel file is required", 400);
 
       const olympiadCode = String(req.body.olympiadCode || "").toUpperCase();
-      const olympiadYearLabel = String(req.body.olympiadYear || "");
       const grade = req.body.grade ? Number(req.body.grade) : undefined;
       if (!["IMO", "ISO", "IEO"].includes(olympiadCode)) {
         throw new AppError("Invalid olympiad", 400);
       }
-      if (!olympiadYearLabel) throw new AppError("Olympiad Year is required", 400);
 
       const data = await uploadService.previewAndImport({
         buffer: file.buffer,
         fileName: file.originalname,
         olympiadCode: olympiadCode as "IMO" | "ISO" | "IEO",
-        olympiadYearLabel,
+        olympiadYearLabel: CURRENT_OLYMPIAD_YEAR,
         grade: Number.isFinite(grade) ? grade : undefined,
         adminId: admin.sub,
         confirm: false,
@@ -211,12 +210,10 @@ export const adminResultController = {
       if (!file) throw new AppError("Excel file is required", 400);
 
       const olympiadCode = String(req.body.olympiadCode || "").toUpperCase();
-      const olympiadYearLabel = String(req.body.olympiadYear || "");
       const grade = req.body.grade ? Number(req.body.grade) : undefined;
       if (!["IMO", "ISO", "IEO"].includes(olympiadCode)) {
         throw new AppError("Invalid olympiad", 400);
       }
-      if (!olympiadYearLabel) throw new AppError("Olympiad Year is required", 400);
 
       let correctedRows: unknown[] = [];
       if (req.body.correctedRows) {
@@ -237,7 +234,7 @@ export const adminResultController = {
         buffer: file.buffer,
         fileName: file.originalname,
         olympiadCode: olympiadCode as "IMO" | "ISO" | "IEO",
-        olympiadYearLabel,
+        olympiadYearLabel: CURRENT_OLYMPIAD_YEAR,
         grade: Number.isFinite(grade) ? grade : undefined,
         adminId: admin.sub,
         confirm: true,

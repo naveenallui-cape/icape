@@ -63,7 +63,7 @@ async function upsertSchoolsForBatch(
 
   const codes = [...unique.keys()];
   const existing = await prisma.school.findMany({
-    where: { olympiadYearId: yearId, schoolCode: { in: codes } },
+    where: { olympiadYear: yearId, schoolCode: { in: codes } },
     select: { id: true, schoolCode: true },
   });
   const map = new Map(existing.map((s) => [s.schoolCode, s.id]));
@@ -78,7 +78,7 @@ async function upsertSchoolsForBatch(
         name: s.name,
         city: s.city ?? null,
         state: s.state ?? null,
-        olympiadYearId: yearId,
+        olympiadYear: yearId,
       };
     });
 
@@ -86,7 +86,7 @@ async function upsertSchoolsForBatch(
     await prisma.school.createMany({ data: missing, skipDuplicates: true });
     const created = await prisma.school.findMany({
       where: {
-        olympiadYearId: yearId,
+        olympiadYear: yearId,
         schoolCode: { in: missing.map((m) => m.schoolCode) },
       },
       select: { id: true, schoolCode: true },
@@ -114,7 +114,7 @@ async function upsertSchoolsForBatch(
         ${states}::text[]
       ) AS v(school_code, name, city, state)
       WHERE s."schoolCode" = v.school_code
-        AND s."olympiadYearId" = ${yearId}
+        AND s."olympiadYear" = ${yearId}
     `;
   }
 
@@ -130,7 +130,7 @@ async function upsertStudentsForBatch(
 
   const existing = await prisma.student.findMany({
     where: {
-      olympiadYearId: yearId,
+      olympiadYear: yearId,
       registrationNumber: { in: regs },
     },
     select: { id: true, registrationNumber: true },
@@ -157,7 +157,7 @@ async function upsertStudentsForBatch(
         name: normalizePersonName(row.studentName),
         grade: row.grade,
         schoolId,
-        olympiadYearId: yearId,
+        olympiadYear: yearId,
       };
     });
 
@@ -165,7 +165,7 @@ async function upsertStudentsForBatch(
     await prisma.student.createMany({ data: missing, skipDuplicates: true });
     const created = await prisma.student.findMany({
       where: {
-        olympiadYearId: yearId,
+        olympiadYear: yearId,
         registrationNumber: { in: missing.map((m) => m.registrationNumber) },
       },
       select: { id: true, registrationNumber: true },
@@ -199,7 +199,7 @@ async function upsertStudentsForBatch(
         ${schoolIds}::text[]
       ) AS v(reg, name, grade, school_id)
       WHERE s."registrationNumber" = v.reg
-        AND s."olympiadYearId" = ${yearId}
+        AND s."olympiadYear" = ${yearId}
     `;
   }
 
@@ -220,7 +220,7 @@ async function upsertResultsForBatch(
   const existing = await prisma.result.findMany({
     where: {
       olympiadId,
-      olympiadYearId: yearId,
+      olympiadYear: yearId,
       studentId: { in: studentIds },
     },
     select: { studentId: true },
@@ -275,7 +275,7 @@ async function upsertResultsForBatch(
 
   await prisma.$executeRaw`
     INSERT INTO "Result" (
-      id, "studentId", "schoolId", "olympiadId", "olympiadYearId",
+      id, "studentId", "schoolId", "olympiadId", "olympiadYear",
       grade, "marksObtained", "totalMarks", percentage,
       rank, "schoolRank", status, "certificateNo", "certificateUrl",
       "createdAt", "updatedAt"
@@ -314,7 +314,7 @@ async function upsertResultsForBatch(
       id, student_id, school_id, grade, marks, total, pct,
       rank, school_rank, status, cert_no, cert_url
     )
-    ON CONFLICT ("studentId", "olympiadId", "olympiadYearId")
+    ON CONFLICT ("studentId", "olympiadId", "olympiadYear")
     DO UPDATE SET
       "schoolId" = EXCLUDED."schoolId",
       grade = EXCLUDED.grade,

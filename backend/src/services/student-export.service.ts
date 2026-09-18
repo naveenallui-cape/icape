@@ -8,6 +8,9 @@ import {
   StudentExportJobStatus,
 } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import {
+  CURRENT_OLYMPIAD_YEAR,
+} from "../lib/olympiad-year";
 import { AppError } from "../middleware/error.middleware";
 import { sendStudentExportReadyEmail } from "../lib/mail";
 import {
@@ -111,19 +114,12 @@ async function cleanupExpiredJobs() {
 
 async function listExportSchools(
   filters: StudentExportFilters,
-  olympiadYear: string,
   scopedWhere: Prisma.RegistrationStudentWhereInput,
 ) {
   return prisma.schoolRegistration.findMany({
     where: {
       status: filters.status ?? RegistrationStatus.APPROVED,
-      ...(olympiadYear
-        ? {
-            olympiadYear: {
-              OR: [{ label: olympiadYear }, { code: olympiadYear }],
-            },
-          }
-        : {}),
+      olympiadYear: CURRENT_OLYMPIAD_YEAR,
       ...(filters.schoolCode?.trim()
         ? { schoolCode: filters.schoolCode.trim() }
         : {}),
@@ -145,18 +141,9 @@ async function processExportJob(jobId: string) {
   const filters = parseFilters(job.filters);
   const format: StudentExportFormat = filters.format === "xlsx" ? "xlsx" : "pdf";
 
-  let olympiadYear = filters.olympiadYear?.trim() || "";
-  if (!olympiadYear) {
-    const active = await prisma.olympiadYear.findFirst({
-      where: { isActive: true },
-      select: { label: true },
-    });
-    olympiadYear = active?.label || "";
-  }
-
   const scopedWhere = schoolRegistrationService.buildAdminStudentWhere({
     ...filters,
-    olympiadYear: olympiadYear || undefined,
+    olympiadYear: CURRENT_OLYMPIAD_YEAR,
     status: filters.status ?? RegistrationStatus.APPROVED,
   });
 
@@ -185,7 +172,7 @@ async function processExportJob(jobId: string) {
   let processed = 0;
 
   try {
-    const schools = await listExportSchools(filters, olympiadYear, scopedWhere);
+    const schools = await listExportSchools(filters, scopedWhere);
 
     if (format === "pdf") {
       const pdf = createStudentListPdfFileWriter(filePath, {

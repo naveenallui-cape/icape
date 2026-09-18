@@ -17,20 +17,15 @@ import {
   allocateStudentRegistrationNumbers,
 } from "../lib/registration-codes";
 import {
+  CURRENT_OLYMPIAD_YEAR,
+  OLYMPIAD_YEAR_META,
+  listOlympiadYears,
+} from "../lib/olympiad-year";
+import {
   sendRegistrationApprovedEmail,
   sendRegistrationRejectedEmail,
   sendRegistrationSubmittedEmail,
 } from "../lib/mail";
-
-async function getActiveOlympiadYear() {
-  const year = await prisma.olympiadYear.findFirst({
-    where: { isActive: true },
-  });
-  if (!year) {
-    throw new AppError("No active Olympiad Year is configured", 400);
-  }
-  return year;
-}
 
 /** Required school fields must be saved before students / payment. */
 function isSchoolDetailsComplete(reg: {
@@ -171,11 +166,7 @@ function serializeRegistration(
     gradeCounts: parseGradeCounts(reg.gradeCounts),
     rejectionNote: reg.rejectionNote,
     submittedAt: reg.submittedAt,
-    olympiadYear: {
-      id: reg.olympiadYear.id,
-      label: reg.olympiadYear.label,
-      code: reg.olympiadYear.code,
-    },
+    olympiadYear: OLYMPIAD_YEAR_META,
     students,
     studentCount: reg.studentCount ?? students.length,
     imoCount,
@@ -226,18 +217,17 @@ function serializePayment(payment: {
   };
 }
 
-async function loadRegistration(accountId: string, yearId: string) {
+async function loadRegistration(accountId: string, olympiadYear: string) {
   return prisma.schoolRegistration.findUnique({
     where: {
-      schoolAccountId_olympiadYearId: {
+      schoolAccountId_olympiadYear: {
         schoolAccountId: accountId,
-        olympiadYearId: yearId,
+        olympiadYear,
       },
     },
     include: {
       students: { orderBy: [{ grade: "asc" }, { name: "asc" }] },
       payment: true,
-      olympiadYear: true,
     },
   });
 }
@@ -295,17 +285,19 @@ export const schoolRegistrationService = {
   },
 
   async getOrCreateDraft(accountId: string) {
-    const year = await getActiveOlympiadYear();
-    let reg = await loadRegistration(accountId, year.id);
+    let reg = await loadRegistration(accountId, CURRENT_OLYMPIAD_YEAR);
     if (!reg) {
       const account = await prisma.schoolAccount.findUnique({
         where: { id: accountId },
       });
-      const schoolCode = await allocateSchoolCode(year.code, year.id);
+      const schoolCode = await allocateSchoolCode(
+        OLYMPIAD_YEAR_META.code,
+        CURRENT_OLYMPIAD_YEAR,
+      );
       reg = await prisma.schoolRegistration.create({
         data: {
           schoolAccountId: accountId,
-          olympiadYearId: year.id,
+          olympiadYear: CURRENT_OLYMPIAD_YEAR,
           schoolCode,
           email: account?.email || "",
           schoolName: account?.name || "",
@@ -314,18 +306,19 @@ export const schoolRegistrationService = {
         include: {
           students: true,
           payment: true,
-          olympiadYear: true,
         },
       });
     } else if (!reg.schoolCode?.trim()) {
-      const schoolCode = await allocateSchoolCode(year.code, year.id);
+      const schoolCode = await allocateSchoolCode(
+        OLYMPIAD_YEAR_META.code,
+        CURRENT_OLYMPIAD_YEAR,
+      );
       reg = await prisma.schoolRegistration.update({
         where: { id: reg.id },
         data: { schoolCode },
         include: {
           students: { orderBy: [{ grade: "asc" }, { name: "asc" }] },
           payment: true,
-          olympiadYear: true,
         },
       });
     }
@@ -362,11 +355,11 @@ export const schoolRegistrationService = {
       inchargeEmail: string;
     },
   ) {
-    const year = await getActiveOlympiadYear();
-    let reg = await loadRegistration(accountId, year.id);
+    const year = CURRENT_OLYMPIAD_YEAR;
+    let reg = await loadRegistration(accountId, year);
     if (!reg) {
       await this.getOrCreateDraft(accountId);
-      reg = await loadRegistration(accountId, year.id);
+      reg = await loadRegistration(accountId, year);
     }
     if (!reg) throw new AppError("Registration not found", 404);
     assertEditable(reg.status);
@@ -374,7 +367,10 @@ export const schoolRegistrationService = {
     // School code is system-assigned and unique — never overwrite from client
     let schoolCode = reg.schoolCode?.trim() || "";
     if (!schoolCode) {
-      schoolCode = await allocateSchoolCode(year.code, year.id);
+      schoolCode = await allocateSchoolCode(
+        OLYMPIAD_YEAR_META.code,
+        CURRENT_OLYMPIAD_YEAR,
+      );
     }
 
     const updated = await prisma.schoolRegistration.update({
@@ -413,7 +409,6 @@ export const schoolRegistrationService = {
       include: {
         students: { orderBy: [{ grade: "asc" }, { name: "asc" }] },
         payment: true,
-        olympiadYear: true,
       },
     });
     return serializeRegistration(updated);
@@ -434,8 +429,8 @@ export const schoolRegistrationService = {
     }>,
     options?: { draft?: boolean },
   ) {
-    const year = await getActiveOlympiadYear();
-    const reg = await loadRegistration(accountId, year.id);
+    const year = CURRENT_OLYMPIAD_YEAR;
+    const reg = await loadRegistration(accountId, year);
     if (!reg) throw new AppError("Complete school details first", 400);
     assertEditable(reg.status);
     assertSchoolDetailsComplete(reg);
@@ -546,7 +541,7 @@ export const schoolRegistrationService = {
       });
     });
 
-    return serializeRegistration(await loadRegistration(accountId, year.id));
+    return serializeRegistration(await loadRegistration(accountId, year));
   },
 
   async buildStudentTemplate() {
@@ -704,8 +699,8 @@ export const schoolRegistrationService = {
       proofPublicId?: string;
     },
   ) {
-    const year = await getActiveOlympiadYear();
-    const reg = await loadRegistration(accountId, year.id);
+    const year = CURRENT_OLYMPIAD_YEAR;
+    const reg = await loadRegistration(accountId, year);
     if (!reg) throw new AppError("Registration not found", 404);
     assertEditable(reg.status);
     assertSchoolDetailsComplete(reg);
@@ -787,15 +782,15 @@ export const schoolRegistrationService = {
       });
     }
 
-    return serializeRegistration(await loadRegistration(accountId, year.id));
+    return serializeRegistration(await loadRegistration(accountId, year));
   },
 
   async checkPaymentReference(
     accountId: string,
     utr: string,
   ): Promise<{ available: boolean; message?: string }> {
-    const year = await getActiveOlympiadYear();
-    const reg = await loadRegistration(accountId, year.id);
+    const year = CURRENT_OLYMPIAD_YEAR;
+    const reg = await loadRegistration(accountId, year);
     try {
       await assertPaymentReferenceAvailable(utr, reg?.id);
       return { available: true };
@@ -818,13 +813,9 @@ export const schoolRegistrationService = {
     const where = input.status
       ? { status: input.status }
       : { status: { not: RegistrationStatus.DRAFT } };
-    const activeYear = await prisma.olympiadYear.findFirst({
-      where: { isActive: true },
-      select: { id: true },
-    });
     const scopedWhere = {
       ...where,
-      ...(activeYear ? { olympiadYearId: activeYear.id } : {}),
+      olympiadYear: CURRENT_OLYMPIAD_YEAR,
     };
     const select = {
       id: true,
@@ -840,7 +831,7 @@ export const schoolRegistrationService = {
       isoCount: true,
       ieoCount: true,
       schoolAccount: { select: { id: true, email: true, name: true } },
-      olympiadYear: { select: { label: true, code: true } },
+      olympiadYear: true,
       payment: {
         select: {
           id: true,
@@ -869,6 +860,7 @@ export const schoolRegistrationService = {
     return {
       registrations: rows.map((row) => ({
         ...row,
+        olympiadYear: OLYMPIAD_YEAR_META,
         olympiadTotal: row.imoCount + row.isoCount + row.ieoCount,
       })),
       pagination: {
@@ -884,14 +876,10 @@ export const schoolRegistrationService = {
     const where = status
       ? { status }
       : { status: { not: RegistrationStatus.DRAFT } };
-    const activeYear = await prisma.olympiadYear.findFirst({
-      where: { isActive: true },
-      select: { id: true },
-    });
     const rows = await prisma.schoolRegistration.findMany({
       where: {
         ...where,
-        ...(activeYear ? { olympiadYearId: activeYear.id } : {}),
+        olympiadYear: CURRENT_OLYMPIAD_YEAR,
       },
       orderBy: [{ submittedAt: "desc" }, { updatedAt: "desc" }],
       take: 2_000,
@@ -946,17 +934,11 @@ export const schoolRegistrationService = {
   }): Prisma.RegistrationStudentWhereInput {
     const registrationWhere: Prisma.SchoolRegistrationWhereInput = {
       status: input.status ?? RegistrationStatus.APPROVED,
+      olympiadYear: CURRENT_OLYMPIAD_YEAR,
     };
 
     if (input.schoolCode?.trim()) {
       registrationWhere.schoolCode = input.schoolCode.trim();
-    }
-
-    if (input.olympiadYear?.trim()) {
-      const year = input.olympiadYear.trim();
-      registrationWhere.olympiadYear = {
-        OR: [{ label: year }, { code: year }],
-      };
     }
 
     const studentWhere: Prisma.RegistrationStudentWhereInput = {
@@ -1011,7 +993,7 @@ export const schoolRegistrationService = {
         city: string;
         state: string;
         status: RegistrationStatus;
-        olympiadYear: { label: string; code: string };
+        olympiadYear: string;
       };
     },
   ) {
@@ -1031,7 +1013,7 @@ export const schoolRegistrationService = {
       state: s.schoolRegistration.state,
       status: s.schoolRegistration.status,
       registrationId: s.schoolRegistration.id,
-      olympiadYear: s.schoolRegistration.olympiadYear,
+      olympiadYear: OLYMPIAD_YEAR_META,
     };
   },
 
@@ -1045,19 +1027,9 @@ export const schoolRegistrationService = {
     page: number;
     limit: number;
   }) {
-    // Default to active Olympiad Year so lists stay year-scoped and fast.
-    let olympiadYear = input.olympiadYear?.trim() || "";
-    if (!olympiadYear) {
-      const active = await prisma.olympiadYear.findFirst({
-        where: { isActive: true },
-        select: { label: true },
-      });
-      olympiadYear = active?.label || "";
-    }
-    const scoped = { ...input, olympiadYear: olympiadYear || undefined };
-    const studentWhere = this.buildAdminStudentWhere(scoped);
+    const studentWhere = this.buildAdminStudentWhere(input);
 
-    const [total, rows, schoolRows, yearRows] = await Promise.all([
+    const [total, rows, schoolRows] = await Promise.all([
       prisma.registrationStudent.count({ where: studentWhere }),
       prisma.registrationStudent.findMany({
         where: studentWhere,
@@ -1077,7 +1049,7 @@ export const schoolRegistrationService = {
               city: true,
               state: true,
               status: true,
-              olympiadYear: { select: { label: true, code: true } },
+              olympiadYear: true,
             },
           },
         },
@@ -1087,13 +1059,7 @@ export const schoolRegistrationService = {
           status: RegistrationStatus.APPROVED,
           schoolCode: { not: "" },
           schoolName: { not: "" },
-          ...(olympiadYear
-            ? {
-                olympiadYear: {
-                  OR: [{ label: olympiadYear }, { code: olympiadYear }],
-                },
-              }
-            : {}),
+          olympiadYear: CURRENT_OLYMPIAD_YEAR,
         },
         distinct: ["schoolCode"],
         orderBy: { schoolName: "asc" },
@@ -1101,10 +1067,6 @@ export const schoolRegistrationService = {
           schoolCode: true,
           schoolName: true,
         },
-      }),
-      prisma.olympiadYear.findMany({
-        orderBy: { label: "desc" },
-        select: { label: true, code: true, isActive: true },
       }),
     ]);
 
@@ -1117,7 +1079,7 @@ export const schoolRegistrationService = {
           schoolCode: s.schoolCode,
           schoolName: s.schoolName,
         })),
-        years: yearRows,
+        years: listOlympiadYears(),
       },
       pagination: {
         page: input.page,
@@ -1147,16 +1109,7 @@ export const schoolRegistrationService = {
       );
     }
 
-    let olympiadYear = input.olympiadYear?.trim() || "";
-    if (!olympiadYear) {
-      const active = await prisma.olympiadYear.findFirst({
-        where: { isActive: true },
-        select: { label: true },
-      });
-      olympiadYear = active?.label || "";
-    }
-    const scoped = { ...input, olympiadYear: olympiadYear || undefined };
-    const studentWhere = this.buildAdminStudentWhere(scoped);
+    const studentWhere = this.buildAdminStudentWhere(input);
 
     const total = await prisma.registrationStudent.count({ where: studentWhere });
     const EXPORT_MAX = 25_000;
@@ -1184,7 +1137,7 @@ export const schoolRegistrationService = {
             city: true,
             state: true,
             status: true,
-            olympiadYear: { select: { label: true, code: true } },
+            olympiadYear: true,
           },
         },
       },
@@ -1197,7 +1150,6 @@ export const schoolRegistrationService = {
       where: { id },
       include: {
         schoolAccount: { select: { id: true, email: true, name: true } },
-        olympiadYear: true,
         payment: true,
       },
     });
@@ -1330,8 +1282,8 @@ export const schoolRegistrationService = {
       adminNote?: string;
     },
   ) {
-    const year = await getActiveOlympiadYear();
-    const reg = await loadRegistration(accountId, year.id);
+    const year = CURRENT_OLYMPIAD_YEAR;
+    const reg = await loadRegistration(accountId, year);
     if (!reg) throw new AppError("Registration not found", 404);
     assertEditable(reg.status);
     assertSchoolDetailsComplete(reg);
@@ -1457,12 +1409,12 @@ export const schoolRegistrationService = {
       }
     }
 
-    return serializeRegistration(await loadRegistration(accountId, year.id));
+    return serializeRegistration(await loadRegistration(accountId, year));
   },
 
   async getApprovedRegistration(accountId: string) {
-    const year = await getActiveOlympiadYear();
-    const reg = await loadRegistration(accountId, year.id);
+    const year = CURRENT_OLYMPIAD_YEAR;
+    const reg = await loadRegistration(accountId, year);
     if (!reg) throw new AppError("Registration not found", 404);
     if (reg.status !== RegistrationStatus.APPROVED) {
       throw new AppError(
@@ -1508,12 +1460,11 @@ export const schoolRegistrationService = {
       limit: number;
     },
   ) {
-    const year = await getActiveOlympiadYear();
     const reg = await prisma.schoolRegistration.findUnique({
       where: {
-        schoolAccountId_olympiadYearId: {
+        schoolAccountId_olympiadYear: {
           schoolAccountId: accountId,
-          olympiadYearId: year.id,
+          olympiadYear: CURRENT_OLYMPIAD_YEAR,
         },
       },
       select: {
@@ -1607,12 +1558,11 @@ export const schoolRegistrationService = {
     accountId: string,
     input: { olympiad?: "IMO" | "ISO" | "IEO"; grade?: number },
   ) {
-    const year = await getActiveOlympiadYear();
     const reg = await prisma.schoolRegistration.findUnique({
       where: {
-        schoolAccountId_olympiadYearId: {
+        schoolAccountId_olympiadYear: {
           schoolAccountId: accountId,
-          olympiadYearId: year.id,
+          olympiadYear: CURRENT_OLYMPIAD_YEAR,
         },
       },
       select: { id: true, status: true },
@@ -1681,60 +1631,9 @@ export const schoolRegistrationService = {
     }));
   },
 
-  /** Aggregated overview for the admin dashboard (active Olympiad Year). */
+  /** Aggregated overview for the admin dashboard (fixed Olympiad Year). */
   async adminDashboard() {
-    const year = await prisma.olympiadYear.findFirst({
-      where: { isActive: true },
-      select: { id: true, label: true, code: true },
-    });
-    if (!year) {
-      return {
-        olympiadYear: null,
-        schools: {
-          totalAccounts: 0,
-          withRegistration: 0,
-          draft: 0,
-          underReview: 0,
-          approved: 0,
-          rejected: 0,
-          incomplete: 0,
-        },
-        students: {
-          approved: 0,
-          underReview: 0,
-          totalNamed: 0,
-          imo: 0,
-          iso: 0,
-          ieo: 0,
-        },
-        payments: {
-          pending: 0,
-          verified: 0,
-          rejected: 0,
-          pendingAmount: 0,
-          verifiedAmount: 0,
-        },
-        attention: [] as Array<{
-          id: string;
-          schoolName: string;
-          schoolCode: string;
-          status: string;
-          studentCount: number;
-          amountExpected: number;
-          submittedAt: string | null;
-          paymentStatus: string | null;
-        }>,
-        recentApproved: [] as Array<{
-          id: string;
-          schoolName: string;
-          schoolCode: string;
-          studentCount: number;
-          updatedAt: string;
-        }>,
-      };
-    }
-
-    const yearFilter = { olympiadYearId: year.id };
+    const yearFilter = { olympiadYear: CURRENT_OLYMPIAD_YEAR };
 
     const [
       totalAccounts,
@@ -1866,7 +1765,7 @@ export const schoolRegistrationService = {
     );
 
     return {
-      olympiadYear: { id: year.id, label: year.label, code: year.code },
+      olympiadYear: OLYMPIAD_YEAR_META,
       schools: {
         totalAccounts,
         withRegistration,

@@ -19,10 +19,10 @@ function randomEightDigit(): string {
   return String(randomInt(MIN_EIGHT_DIGIT, MAX_EIGHT_DIGIT + 1));
 }
 
-async function schoolCodeTaken(code: string, olympiadYearId?: string) {
+async function schoolCodeTaken(code: string, olympiadYear?: string) {
   const existing = await prisma.schoolRegistration.findFirst({
-    where: olympiadYearId
-      ? { schoolCode: code, olympiadYearId }
+    where: olympiadYear
+      ? { schoolCode: code, olympiadYear }
       : { schoolCode: code },
     select: { id: true },
   });
@@ -34,11 +34,11 @@ async function schoolCodeTaken(code: string, olympiadYearId?: string) {
  */
 export async function allocateSchoolCode(
   _olympiadYearCode: string,
-  olympiadYearId?: string,
+  olympiadYear?: string,
 ) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const code = randomSixDigit();
-    if (!(await schoolCodeTaken(code, olympiadYearId))) {
+    if (!(await schoolCodeTaken(code, olympiadYear))) {
       return code;
     }
   }

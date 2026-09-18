@@ -7,6 +7,10 @@ import {
   sendPasswordOtpEmail,
 } from "../lib/mail";
 import { AppError } from "../middleware/error.middleware";
+import {
+  CURRENT_OLYMPIAD_YEAR,
+  olympiadYearMeta,
+} from "../lib/olympiad-year";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -229,9 +233,7 @@ export const schoolAuthService = {
     const approved = Boolean(params?.approved);
 
     const activeYear =
-      incomplete || approved
-        ? await prisma.olympiadYear.findFirst({ where: { isActive: true } })
-        : null;
+      incomplete || approved ? CURRENT_OLYMPIAD_YEAR : null;
 
     const searchWhere = q
       ? {
@@ -277,13 +279,13 @@ export const schoolAuthService = {
             OR: [
               {
                 registrations: {
-                  none: { olympiadYearId: activeYear.id },
+                  none: { olympiadYear: activeYear },
                 },
               },
               {
                 registrations: {
                   some: {
-                    olympiadYearId: activeYear.id,
+                    olympiadYear: activeYear,
                     status: { in: ["DRAFT" as const, "REJECTED" as const] },
                   },
                 },
@@ -297,7 +299,7 @@ export const schoolAuthService = {
         ? {
             registrations: {
               some: {
-                olympiadYearId: activeYear.id,
+                olympiadYear: activeYear,
                 status: "APPROVED" as const,
               },
             },
@@ -332,7 +334,7 @@ export const schoolAuthService = {
           phone: true,
           schoolMobile: true,
           email: true,
-          olympiadYear: { select: { label: true, code: true } },
+          olympiadYear: true,
           ...countFields,
         }
       : {
@@ -364,7 +366,7 @@ export const schoolAuthService = {
           currentStep: true,
           submittedAt: true,
           updatedAt: true,
-          olympiadYear: { select: { label: true, code: true } },
+          olympiadYear: true,
           ...countFields,
           payment: {
             select: {
@@ -391,7 +393,7 @@ export const schoolAuthService = {
           updatedAt: true,
           registrations: {
             ...(activeYear
-              ? { where: { olympiadYearId: activeYear.id } }
+              ? { where: { olympiadYear: activeYear } }
               : {}),
             orderBy: { updatedAt: "desc" },
             take: 1,
@@ -446,7 +448,9 @@ export const schoolAuthService = {
         isoCount: iso,
         ieoCount: ieo,
         olympiadTotal: imo + iso + ieo,
-        olympiadYear: registration?.olympiadYear || null,
+        olympiadYear: registration?.olympiadYear
+          ? olympiadYearMeta(registration.olympiadYear)
+          : null,
         registration: incomplete ? null : registration,
       };
     });
@@ -454,7 +458,7 @@ export const schoolAuthService = {
     let totals = { imo: 0, iso: 0, ieo: 0, schools: total };
     if (approved && activeYear) {
       const registrationFilter = {
-        olympiadYearId: activeYear.id,
+        olympiadYear: activeYear,
         status: "APPROVED" as const,
         ...(q ? { schoolAccount: where } : {}),
       };

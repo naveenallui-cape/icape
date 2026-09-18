@@ -3,7 +3,6 @@ import { AppError } from "../middleware/error.middleware";
 import {
   adminRepository,
   olympiadRepository,
-  olympiadYearRepository,
   resultRepository,
   schoolRepository,
   studentRepository,
@@ -19,6 +18,11 @@ import {
 } from "../utils/result.utils";
 import { prisma } from "../lib/prisma";
 import { resultCache } from "../lib/cache";
+import {
+  CURRENT_OLYMPIAD_YEAR,
+  OLYMPIAD_YEAR_META,
+  listOlympiadYears,
+} from "../lib/olympiad-year";
 
 function schoolCodeFromName(name: string) {
   const base = name
@@ -59,7 +63,6 @@ export type StudentResultsPayload = {
     state: string | null;
   };
   olympiadYear: {
-    id: string;
     label: string;
     code: string;
   };
@@ -77,18 +80,11 @@ export const resultService = {
     grade: number;
     olympiadYear?: string;
   }): Promise<StudentResultsPayload> {
-    const year = await olympiadYearRepository.findPublishedByLabel(
-      input.olympiadYear,
-    );
-    if (!year) {
-      throw new AppError("Results are not published for this Olympiad Year", 404);
-    }
-
     const reg = normalizeRegistrationNumber(input.registrationNumber);
     const version = await resultCache.getVersion();
     const cacheKey = resultCache.studentKey(
       version,
-      year.label,
+      CURRENT_OLYMPIAD_YEAR,
       reg,
       input.grade,
     );
@@ -98,7 +94,7 @@ export const resultService = {
     const student = await studentRepository.findByRegistrationAndGrade({
       registrationNumber: reg,
       grade: input.grade,
-      olympiadYearId: year.id,
+      olympiadYear: CURRENT_OLYMPIAD_YEAR,
     });
 
     if (!student) {
@@ -110,7 +106,7 @@ export const resultService = {
 
     const results = await resultRepository.findByStudentYear(
       student.id,
-      year.id,
+      CURRENT_OLYMPIAD_YEAR,
     );
 
     if (results.length === 0) {
@@ -134,7 +130,7 @@ export const resultService = {
         grade: student.grade,
       },
       school: student.school,
-      olympiadYear: student.olympiadYear,
+      olympiadYear: OLYMPIAD_YEAR_META,
       summary: {
         olympiadsParticipated: results.length,
         bestRank: ranks.length ? Math.min(...ranks) : null,
@@ -156,17 +152,10 @@ export const resultService = {
     olympiadYear?: string;
     limit: number;
   }) {
-    const year = await olympiadYearRepository.findPublishedByLabel(
-      input.olympiadYear,
-    );
-    if (!year) {
-      throw new AppError("Results are not published for this Olympiad Year", 404);
-    }
-
     const version = await resultCache.getVersion();
     const cacheKey = resultCache.schoolSearchKey(
       version,
-      year.label,
+      CURRENT_OLYMPIAD_YEAR,
       input.q.trim(),
       input.limit,
     );
@@ -178,11 +167,11 @@ export const resultService = {
 
     const schools = await schoolRepository.search({
       q: input.q,
-      olympiadYearId: year.id,
+      olympiadYear: CURRENT_OLYMPIAD_YEAR,
       limit: input.limit,
     });
     const payload = {
-      olympiadYear: { label: year.label, code: year.code },
+      olympiadYear: OLYMPIAD_YEAR_META,
       schools,
     };
     await resultCache.set(cacheKey, payload, 120);
@@ -199,19 +188,12 @@ export const resultService = {
     page: number;
     limit: number;
   }) {
-    const year = await olympiadYearRepository.findPublishedByLabel(
-      input.olympiadYear,
-    );
-    if (!year) {
-      throw new AppError("Results are not published for this Olympiad Year", 404);
-    }
-
     const studentKey = (input.student || "").trim().toLowerCase() || "ALL";
     const schoolKey = input.schoolId || input.schoolCode || "";
     const version = await resultCache.getVersion();
     const cacheKey = resultCache.schoolResultsKey(
       version,
-      year.label,
+      CURRENT_OLYMPIAD_YEAR,
       schoolKey,
       input.olympiad || "ALL",
       input.grade != null ? String(input.grade) : "ALL",
@@ -257,9 +239,12 @@ export const resultService = {
     let school = null;
     if (input.schoolId) {
       school = await schoolRepository.findById(input.schoolId);
-      if (school && school.olympiadYearId !== year.id) school = null;
+      if (school && school.olympiadYear !== CURRENT_OLYMPIAD_YEAR) school = null;
     } else if (input.schoolCode) {
-      school = await schoolRepository.findByCode(input.schoolCode, year.id);
+      school = await schoolRepository.findByCode(
+        input.schoolCode,
+        CURRENT_OLYMPIAD_YEAR,
+      );
     }
 
     if (!school) {
@@ -276,7 +261,7 @@ export const resultService = {
     const skip = (input.page - 1) * input.limit;
     const [rows, total] = await resultRepository.findSchoolResults({
       schoolId: school.id,
-      olympiadYearId: year.id,
+      olympiadYear: CURRENT_OLYMPIAD_YEAR,
       olympiadId,
       grade: input.grade,
       student: input.student,
@@ -291,7 +276,7 @@ export const resultService = {
         city: school.city,
         state: school.state,
       },
-      olympiadYear: { label: year.label, code: year.code },
+      olympiadYear: OLYMPIAD_YEAR_META,
       filters: {
         olympiad: input.olympiad ?? null,
         grade: input.grade ?? null,
@@ -333,17 +318,10 @@ export const resultService = {
       limit: number;
     },
   ) {
-    const year = await olympiadYearRepository.findPublishedByLabel(
-      input.olympiadYear,
-    );
-    if (!year) {
-      throw new AppError("Results are not published for this Olympiad Year", 404);
-    }
-
     const regForYear = await prisma.schoolRegistration.findFirst({
       where: {
         schoolAccountId: accountId,
-        olympiadYearId: year.id,
+        olympiadYear: CURRENT_OLYMPIAD_YEAR,
       },
       select: {
         schoolCode: true,
@@ -394,7 +372,7 @@ export const resultService = {
             city: reg.city || null,
             state: reg.state || null,
           },
-          olympiadYear: { label: year.label, code: year.code },
+          olympiadYear: OLYMPIAD_YEAR_META,
           filters: {
             olympiad: input.olympiad ?? null,
             grade: input.grade ?? null,
@@ -423,26 +401,9 @@ export const resultService = {
     page: number;
     limit: number;
   }) {
-    const where: Prisma.ResultWhereInput = {};
-    // Only filter by year when the admin explicitly passes one.
-    // Defaulting to "active" year hid manual saves from other years (e.g. 2025-26).
-    if (input.olympiadYear?.trim()) {
-      const year = await olympiadYearRepository.findByLabelOrCode(
-        input.olympiadYear.trim(),
-      );
-      if (!year) {
-        return {
-          pagination: {
-            page: input.page,
-            limit: input.limit,
-            total: 0,
-            totalPages: 1,
-          },
-          results: [],
-        };
-      }
-      where.olympiadYearId = year.id;
-    }
+    const where: Prisma.ResultWhereInput = {
+      olympiadYear: CURRENT_OLYMPIAD_YEAR,
+    };
     if (input.grade) where.grade = input.grade;
     if (input.status) where.status = input.status;
     if (input.olympiad) {
@@ -510,7 +471,7 @@ export const resultService = {
         schoolCode: row.school.schoolCode,
         schoolName: row.school.name,
         olympiad: row.olympiad.code,
-        olympiadYear: row.olympiadYear.label,
+        olympiadYear: row.olympiadYear,
         grade: row.grade,
         marksObtained: toNumber(row.marksObtained),
         totalMarks: toNumber(row.totalMarks),
@@ -575,7 +536,7 @@ export const resultService = {
       state?: string;
       grade: number;
       olympiadCode: "IMO" | "ISO" | "IEO";
-      olympiadYear: string;
+      olympiadYear?: string;
       marksObtained: number;
       totalMarks?: number;
       rank?: number | null;
@@ -588,15 +549,10 @@ export const resultService = {
     let inserted = 0;
     let updated = 0;
 
-    // Resolve history olympiad/year from the first row (even if later rows fail)
+    // Resolve history olympiad from the first row (even if later rows fail)
     let historyOlympiadId: string | null = null;
-    let historyYearId: string | null = null;
     if (rows[0]) {
-      const y = await olympiadYearRepository.findByLabelOrCode(
-        rows[0].olympiadYear,
-      );
       const o = await olympiadRepository.findByCode(rows[0].olympiadCode);
-      if (y) historyYearId = y.id;
       if (o) historyOlympiadId = o.id;
     }
 
@@ -621,14 +577,6 @@ export const resultService = {
           );
         }
 
-        const year = await olympiadYearRepository.findByLabelOrCode(
-          raw.olympiadYear,
-        );
-        if (!year) {
-          throw new Error(
-            `Olympiad Year "${raw.olympiadYear}" not found. Use 2025-26 or 2026-27.`,
-          );
-        }
         const olympiad = await olympiadRepository.findByCode(raw.olympiadCode);
         if (!olympiad) {
           throw new Error(`Olympiad "${raw.olympiadCode}" not found`);
@@ -651,9 +599,9 @@ export const resultService = {
 
         const school = await prisma.school.upsert({
           where: {
-            schoolCode_olympiadYearId: {
+            schoolCode_olympiadYear: {
               schoolCode,
-              olympiadYearId: year.id,
+              olympiadYear: CURRENT_OLYMPIAD_YEAR,
             },
           },
           create: {
@@ -661,7 +609,7 @@ export const resultService = {
             name: schoolName,
             city: raw.place?.trim() || null,
             state: raw.state?.trim() || null,
-            olympiadYearId: year.id,
+            olympiadYear: CURRENT_OLYMPIAD_YEAR,
           },
           update: {
             name: schoolName,
@@ -673,9 +621,9 @@ export const resultService = {
 
         const student = await prisma.student.upsert({
           where: {
-            registrationNumber_olympiadYearId: {
+            registrationNumber_olympiadYear: {
               registrationNumber,
-              olympiadYearId: year.id,
+              olympiadYear: CURRENT_OLYMPIAD_YEAR,
             },
           },
           create: {
@@ -683,7 +631,7 @@ export const resultService = {
             name: studentName,
             grade: raw.grade,
             schoolId: school.id,
-            olympiadYearId: year.id,
+            olympiadYear: CURRENT_OLYMPIAD_YEAR,
           },
           update: {
             name: studentName,
@@ -695,10 +643,10 @@ export const resultService = {
 
         const existing = await prisma.result.findUnique({
           where: {
-            studentId_olympiadId_olympiadYearId: {
+            studentId_olympiadId_olympiadYear: {
               studentId: student.id,
               olympiadId: olympiad.id,
-              olympiadYearId: year.id,
+              olympiadYear: CURRENT_OLYMPIAD_YEAR,
             },
           },
           select: { id: true },
@@ -707,17 +655,17 @@ export const resultService = {
         const percentage = computePercentage(raw.marksObtained, totalMarks);
         await prisma.result.upsert({
           where: {
-            studentId_olympiadId_olympiadYearId: {
+            studentId_olympiadId_olympiadYear: {
               studentId: student.id,
               olympiadId: olympiad.id,
-              olympiadYearId: year.id,
+              olympiadYear: CURRENT_OLYMPIAD_YEAR,
             },
           },
           create: {
             studentId: student.id,
             schoolId: school.id,
             olympiadId: olympiad.id,
-            olympiadYearId: year.id,
+            olympiadYear: CURRENT_OLYMPIAD_YEAR,
             grade: raw.grade,
             marksObtained: raw.marksObtained,
             totalMarks,
@@ -751,12 +699,12 @@ export const resultService = {
     const saved = inserted + updated;
     let uploadId: string | null = null;
 
-    if (historyOlympiadId && historyYearId && (saved > 0 || rows.length > 0)) {
+    if (historyOlympiadId && (saved > 0 || rows.length > 0)) {
       const upload = await prisma.resultUpload.create({
         data: {
           fileName: `Manual entry (${rows.length} row${rows.length === 1 ? "" : "s"})`,
           olympiadId: historyOlympiadId,
-          olympiadYearId: historyYearId,
+          olympiadYear: CURRENT_OLYMPIAD_YEAR,
           totalRows: rows.length,
           validRows: saved,
           invalidRows: errors.length,
@@ -816,11 +764,8 @@ export const resultService = {
     }>(cacheKey);
     if (cached) return cached;
 
-    const [olympiads, years] = await Promise.all([
-      olympiadRepository.list(),
-      olympiadYearRepository.list(),
-    ]);
-    const payload = { olympiads, years };
+    const olympiads = await olympiadRepository.list();
+    const payload = { olympiads, years: listOlympiadYears() };
     await resultCache.set(cacheKey, payload, 300);
     return payload;
   },

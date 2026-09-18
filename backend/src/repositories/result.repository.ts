@@ -1,38 +1,28 @@
 import { Prisma, ResultStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import {
+  listOlympiadYears,
+  olympiadYearMeta,
+  resolveOlympiadYear,
+} from "../lib/olympiad-year";
+import {
   normalizeRegistrationNumber,
   normalizeSchoolCode,
 } from "../utils/result.utils";
 
+/** Year helpers — no OlympiadYear table. */
 export const olympiadYearRepository = {
   findPublishedByLabel(label?: string) {
-    if (label) {
-      return prisma.olympiadYear.findFirst({
-        where: {
-          OR: [{ label }, { code: label }],
-          published: true,
-        },
-      });
-    }
-    return prisma.olympiadYear.findFirst({
-      where: { published: true },
-      orderBy: { code: "desc" },
-    });
+    // Results are always available for resolved years (no published flag in DB).
+    const year = resolveOlympiadYear(label);
+    return Promise.resolve(olympiadYearMeta(year));
   },
   findByLabelOrCode(label?: string) {
-    if (label) {
-      return prisma.olympiadYear.findFirst({
-        where: { OR: [{ label }, { code: label }] },
-      });
-    }
-    return prisma.olympiadYear.findFirst({
-      where: { isActive: true },
-      orderBy: { code: "desc" },
-    });
+    const year = resolveOlympiadYear(label);
+    return Promise.resolve(olympiadYearMeta(year));
   },
   list() {
-    return prisma.olympiadYear.findMany({ orderBy: { code: "desc" } });
+    return Promise.resolve(listOlympiadYears());
   },
 };
 
@@ -49,7 +39,7 @@ export const studentRepository = {
   findByRegistrationAndGrade(params: {
     registrationNumber: string;
     grade: number;
-    olympiadYearId: string;
+    olympiadYear: string;
   }) {
     return prisma.student.findFirst({
       where: {
@@ -57,13 +47,14 @@ export const studentRepository = {
           params.registrationNumber,
         ),
         grade: params.grade,
-        olympiadYearId: params.olympiadYearId,
+        olympiadYear: params.olympiadYear,
       },
       select: {
         id: true,
         registrationNumber: true,
         name: true,
         grade: true,
+        olympiadYear: true,
         school: {
           select: {
             id: true,
@@ -73,21 +64,18 @@ export const studentRepository = {
             state: true,
           },
         },
-        olympiadYear: {
-          select: { id: true, label: true, code: true },
-        },
       },
     });
   },
 };
 
 export const schoolRepository = {
-  search(params: { q: string; olympiadYearId: string; limit: number }) {
+  search(params: { q: string; olympiadYear: string; limit: number }) {
     const q = params.q.trim();
     const code = normalizeSchoolCode(q);
     return prisma.school.findMany({
       where: {
-        olympiadYearId: params.olympiadYearId,
+        olympiadYear: params.olympiadYear,
         OR: [
           { schoolCode: { equals: code, mode: "insensitive" } },
           { schoolCode: { contains: code, mode: "insensitive" } },
@@ -105,12 +93,12 @@ export const schoolRepository = {
       orderBy: [{ name: "asc" }],
     });
   },
-  findByCode(schoolCode: string, olympiadYearId: string) {
+  findByCode(schoolCode: string, olympiadYear: string) {
     return prisma.school.findUnique({
       where: {
-        schoolCode_olympiadYearId: {
+        schoolCode_olympiadYear: {
           schoolCode: normalizeSchoolCode(schoolCode),
-          olympiadYearId,
+          olympiadYear,
         },
       },
       select: {
@@ -131,16 +119,16 @@ export const schoolRepository = {
         name: true,
         city: true,
         state: true,
-        olympiadYearId: true,
+        olympiadYear: true,
       },
     });
   },
 };
 
 export const resultRepository = {
-  findByStudentYear(studentId: string, olympiadYearId: string) {
+  findByStudentYear(studentId: string, olympiadYear: string) {
     return prisma.result.findMany({
-      where: { studentId, olympiadYearId },
+      where: { studentId, olympiadYear },
       select: {
         id: true,
         grade: true,
@@ -163,7 +151,7 @@ export const resultRepository = {
 
   findSchoolResults(params: {
     schoolId: string;
-    olympiadYearId: string;
+    olympiadYear: string;
     olympiadId?: string;
     grade?: number;
     student?: string;
@@ -173,7 +161,7 @@ export const resultRepository = {
     const studentQ = params.student?.trim();
     const where: Prisma.ResultWhereInput = {
       schoolId: params.schoolId,
-      olympiadYearId: params.olympiadYearId,
+      olympiadYear: params.olympiadYear,
       ...(params.olympiadId ? { olympiadId: params.olympiadId } : {}),
       ...(params.grade ? { grade: params.grade } : {}),
       ...(studentQ
@@ -247,6 +235,7 @@ export const resultRepository = {
           rank: true,
           schoolRank: true,
           status: true,
+          olympiadYear: true,
           student: {
             select: { registrationNumber: true, name: true },
           },
@@ -255,9 +244,6 @@ export const resultRepository = {
           },
           olympiad: {
             select: { code: true, name: true },
-          },
-          olympiadYear: {
-            select: { label: true },
           },
         },
         orderBy: [{ updatedAt: "desc" }],

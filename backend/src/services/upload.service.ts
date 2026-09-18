@@ -4,8 +4,8 @@ import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error.middleware";
 import {
   olympiadRepository,
-  olympiadYearRepository,
 } from "../repositories/result.repository";
+import { CURRENT_OLYMPIAD_YEAR } from "../lib/olympiad-year";
 import {
   computePercentage,
   examTotalMarksForGrade,
@@ -449,18 +449,13 @@ export const uploadService = {
     buffer: Buffer;
     fileName: string;
     olympiadCode: "IMO" | "ISO" | "IEO";
-    olympiadYearLabel: string;
+    olympiadYearLabel?: string;
     grade?: number;
     adminId: string;
     confirm: boolean;
     uploadId?: string;
     correctedRows?: CorrectedUploadRow[];
   }) {
-    const year = await olympiadYearRepository.findByLabelOrCode(
-      params.olympiadYearLabel,
-    );
-    if (!year) throw new AppError("Olympiad Year not found", 404);
-
     const olympiad = await olympiadRepository.findByCode(params.olympiadCode);
     if (!olympiad) throw new AppError("Olympiad not found", 404);
 
@@ -788,7 +783,7 @@ export const uploadService = {
           data: {
             fileName: params.fileName,
             olympiadId: olympiad.id,
-            olympiadYearId: year.id,
+            olympiadYear: CURRENT_OLYMPIAD_YEAR,
             grade: params.grade ?? null,
             totalRows: preview.totalRows,
             validRows: preview.validRows,
@@ -818,7 +813,7 @@ export const uploadService = {
     void runBulkResultImport({
       uploadId: upload.id,
       valid,
-      yearId: year.id,
+      yearId: CURRENT_OLYMPIAD_YEAR,
       olympiadId: olympiad.id,
       errorCount: invalidOnly.length,
       onProgress: async (p) => {
@@ -870,7 +865,7 @@ export const uploadService = {
         createdAt: true,
         updatedAt: true,
         olympiad: { select: { code: true } },
-        olympiadYear: { select: { label: true } },
+        olympiadYear: true,
       },
     });
     if (!upload) throw new AppError("Upload not found", 404);
@@ -882,11 +877,16 @@ export const uploadService = {
             upload.status === "COMPLETED_WITH_ERRORS"
           ? 100
           : 0;
-    return { ...upload, targetRows: target, percent };
+    return {
+      ...upload,
+      olympiadYear: { label: upload.olympiadYear },
+      targetRows: target,
+      percent,
+    };
   },
 
   async listUploads(limit = 50) {
-    return prisma.resultUpload.findMany({
+    const rows = await prisma.resultUpload.findMany({
       take: limit,
       orderBy: { createdAt: "desc" },
       select: {
@@ -901,10 +901,14 @@ export const uploadService = {
         errorSummary: true,
         createdAt: true,
         olympiad: { select: { code: true, name: true } },
-        olympiadYear: { select: { label: true } },
+        olympiadYear: true,
         uploadedBy: { select: { name: true, email: true } },
       },
     });
+    return rows.map((row) => ({
+      ...row,
+      olympiadYear: { label: row.olympiadYear },
+    }));
   },
 
   async getUploadErrors(uploadId: string) {
