@@ -8,22 +8,35 @@ import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 
 const app = express();
 
+function isAllowedOrigin(origin: string | undefined) {
+  if (!origin) return true;
+  const allowed = new Set([
+    env.frontendUrl.replace(/\/$/, ""),
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://www.i-cape.com",
+    "https://i-cape.com",
+  ]);
+  if (allowed.has(origin.replace(/\/$/, ""))) return true;
+  // Allow www / apex variants of the configured frontend host
+  try {
+    const host = new URL(origin).hostname.replace(/^www\./, "");
+    const configured = new URL(env.frontendUrl).hostname.replace(/^www\./, "");
+    return host === configured;
+  } catch {
+    return false;
+  }
+}
+
 app.use(
   helmet({
-    // Frontend (localhost:3000) calls API (localhost:5001) cross-origin
     crossOriginResourcePolicy: { policy: "cross-origin" },
   }),
 );
 app.use(
   cors({
     origin(origin, callback) {
-      const allowed = new Set([
-        env.frontendUrl,
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-      ]);
-      // Allow non-browser tools (no Origin) and configured frontend hosts
-      if (!origin || allowed.has(origin)) {
+      if (isAllowedOrigin(origin)) {
         callback(null, true);
         return;
       }
@@ -39,7 +52,10 @@ app.use(cookieParser());
 // Intentionally NO global rate limit — admin must not be throttled.
 // Public result routes apply their own limiter in result.routes.ts.
 
+// Canonical mount
 app.use("/api", apiRouter);
+// Fallback when NEXT_PUBLIC_API_URL omits /api (common production misconfig)
+app.use(apiRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
