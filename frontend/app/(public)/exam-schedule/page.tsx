@@ -30,7 +30,7 @@ export default function ExamSchedulePage() {
   return (
     <PageShell
       title="Exam Schedule"
-      description="i-CAPE Olympiad Year 2026-27 examination dates for IMO, ISO, and IEO."
+      description="i-CAPE Olympiad Year 2026-2027 examination dates for IMO, ISO, and IEO."
     >
       <div className="space-y-12">
         <div className="max-w-3xl space-y-4 text-base leading-relaxed text-muted sm:text-lg">
@@ -39,7 +39,7 @@ export default function ExamSchedulePage() {
           </h2>
           <div className="h-0.5 w-14 bg-accent" aria-hidden />
           <p>
-            The i-CAPE examinations for Olympiad Year 2026-27 will be conducted
+            The i-CAPE examinations for Olympiad Year 2026-2027 will be conducted
             in December 2026. Schools should complete registration on or before{" "}
             <strong className="text-brand">30th September 2026</strong> so that
             students can appear for the scheduled olympiads.
@@ -82,7 +82,7 @@ export default function ExamSchedulePage() {
           </h2>
           <div className="mt-2 h-0.5 w-14 bg-accent" aria-hidden />
           <p className="mt-3 text-base text-muted sm:text-lg">
-            Olympiad Year 2026-27
+            Olympiad Year 2026-2027
           </p>
 
           <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-surface">

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function ResultsPage() {
   return (
     <PageShell
-      eyebrow="Olympiad Year 2025-26"
+      eyebrow="Olympiad Year 2026-2027"
       title="Check Your Olympiad Results"
     >
       <ResultsLanding />

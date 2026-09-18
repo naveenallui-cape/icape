@@ -7,14 +7,14 @@ const forms = [
   {
     title: "School Registration Form",
     description:
-      "School details and olympiad participation for Olympiad Year 2026-27.",
+      "School details and olympiad participation for Olympiad Year 2026-2027.",
     href: "/forms/School_Registration_Form_2026-27.pdf",
     fileName: "School_Registration_Form_2026-27.pdf",
   },
   {
     title: "Student Registration Form",
     description:
-      "Student details for each participant for Olympiad Year 2026-27.",
+      "Student details for each participant for Olympiad Year 2026-2027.",
     href: "/forms/Student_Registration_Form_2026-27.pdf",
     fileName: "Student_Registration_Form_2026-27.pdf",
   },
@@ -32,7 +32,7 @@ export default function RegistrationFormsPage() {
   return (
     <PageShell
       title="Download Registration Forms"
-      description="Download school and student registration forms for Olympiad Year 2026-27, then submit with payment."
+      description="Download school and student registration forms for Olympiad Year 2026-2027, then submit with payment."
     >
       <div className="space-y-12">
         <div>

@@ -82,7 +82,7 @@ function paperFor(
     olympiad,
     grade,
     title: `Grade ${grade} Model Paper`,
-    description: `${code} model paper for Grade ${grade} — Olympiad Year 2026-27.`,
+    description: `${code} model paper for Grade ${grade} — Olympiad Year 2026-2027.`,
     href: `/sample-papers/${olympiad}/grade-${grade}.pdf`,
     fileName,
     available,

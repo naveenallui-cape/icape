@@ -49,7 +49,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
     examDay: "Monday",
     intro: [
       "The Innovative Maths Olympiad (IMO) is an annual academic competition conducted by i-CAPE for students of Grades 3 to 10. It assesses maths understanding, logical ability, and problem-solving skills aligned to school curriculum and olympiad thinking.",
-      "This page covers key details for i-CAPE IMO — overview, eligibility, exam date, pattern & syllabus, sample papers, awards, and how schools can participate for Olympiad Year 2026-27.",
+      "This page covers key details for i-CAPE IMO — overview, eligibility, exam date, pattern & syllabus, sample papers, awards, and how schools can participate for Olympiad Year 2026-2027.",
     ],
     overview: [
       { label: "Exam Organizing Body", value: sharedOverviewBase.organizingBody },
@@ -84,7 +84,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
       "Submit filled forms and payment proof to i-CAPE on WhatsApp (+91 80745 63902) on or before 30th September 2026.",
     ],
     examDatesNote:
-      "i-CAPE Innovative Maths Olympiad (IMO) for Olympiad Year 2026-27 will be held on 14th December 2026 (Monday).",
+      "i-CAPE Innovative Maths Olympiad (IMO) for Olympiad Year 2026-2027 will be held on 14th December 2026 (Monday).",
     samplePapersBlurb:
       "i-CAPE has released IMO model papers for Grades 3 to 10. Schools and students can view or download the PDFs to understand the exam pattern and practise for the olympiad.",
     awardsBlurb:
@@ -108,7 +108,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
     examDay: "Wednesday",
     intro: [
       "The Innovative Science Olympiad (ISO) is an annual academic competition conducted by i-CAPE for students of Grades 3 to 10. It assesses scientific knowledge, observation skills, and logical ability across biology, chemistry, physics, and environmental science themes suited to each grade.",
-      "This page answers common questions about i-CAPE ISO — overview, eligibility, exam date, pattern & syllabus, sample papers, awards, and how schools can enrol students for Olympiad Year 2026-27.",
+      "This page answers common questions about i-CAPE ISO — overview, eligibility, exam date, pattern & syllabus, sample papers, awards, and how schools can enrol students for Olympiad Year 2026-2027.",
     ],
     overview: [
       { label: "Exam Organizing Body", value: sharedOverviewBase.organizingBody },
@@ -143,7 +143,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
       "Submit filled forms and payment proof to i-CAPE on WhatsApp (+91 80745 63902) on or before 30th September 2026.",
     ],
     examDatesNote:
-      "i-CAPE Innovative Science Olympiad (ISO) for Olympiad Year 2026-27 will be held on 16th December 2026 (Wednesday).",
+      "i-CAPE Innovative Science Olympiad (ISO) for Olympiad Year 2026-2027 will be held on 16th December 2026 (Wednesday).",
     samplePapersBlurb:
       "i-CAPE has released ISO model papers for Grades 3 to 10. Use these PDFs to familiarise students with question style, syllabus coverage, and exam timing.",
     awardsBlurb:
@@ -167,7 +167,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
     examDay: "Friday",
     intro: [
       "The Innovative English Olympiad (IEO) is an annual academic competition conducted by i-CAPE for students of Grades 3 to 10. It assesses language skills across vocabulary and functional grammar, reading comprehension, and interactive English suited to each grade.",
-      "This page covers i-CAPE IEO essentials — overview, eligibility, exam date, pattern & syllabus, sample papers, awards, and school participation steps for Olympiad Year 2026-27.",
+      "This page covers i-CAPE IEO essentials — overview, eligibility, exam date, pattern & syllabus, sample papers, awards, and school participation steps for Olympiad Year 2026-2027.",
     ],
     overview: [
       { label: "Exam Organizing Body", value: sharedOverviewBase.organizingBody },
@@ -202,7 +202,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
       "Submit filled forms and payment proof to i-CAPE on WhatsApp (+91 80745 63902) on or before 30th September 2026.",
     ],
     examDatesNote:
-      "i-CAPE Innovative English Olympiad (IEO) for Olympiad Year 2026-27 will be held on 18th December 2026 (Friday).",
+      "i-CAPE Innovative English Olympiad (IEO) for Olympiad Year 2026-2027 will be held on 18th December 2026 (Friday).",
     samplePapersBlurb:
       "i-CAPE has released IEO model papers for Grades 3 to 10. Schools and teachers can use these PDFs for classroom practice and revision before the exam.",
     awardsBlurb:

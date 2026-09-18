@@ -140,7 +140,7 @@ export type AdminRegistrationDetail = {
   isoCount: number;
   ieoCount: number;
   olympiadTotal: number;
-  olympiadYear: { id: string; label: string; code: string };
+  olympiadYear: { label: string; code: string };
   payment: {
     amountExpected: number;
     paymentMethod: PaymentMethod;
@@ -261,7 +261,7 @@ export const adminQueryKeys = {
 };
 
 export type AdminDashboardData = {
-  olympiadYear: { id: string; label: string; code: string } | null;
+  olympiadYear: { label: string; code: string } | null;
   schools: {
     totalAccounts: number;
     withRegistration: number;

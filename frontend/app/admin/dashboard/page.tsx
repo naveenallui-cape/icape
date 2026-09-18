@@ -19,6 +19,7 @@ import {
   fetchAdminDashboard,
   type AdminDashboardData,
 } from "@/lib/admin-queries";
+import { OLYMPIAD_YEAR_LABEL } from "@/lib/registration-announcement";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -43,6 +44,11 @@ function formatDate(value: string | null) {
 
 function statusLabel(status: string) {
   return status.replaceAll("_", " ");
+}
+
+function n(value: unknown) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
 }
 
 function KpiCard({
@@ -192,8 +198,39 @@ function DashboardSkeleton() {
 }
 
 function DashboardBody({ data }: { data: AdminDashboardData }) {
-  const { schools, students, payments, attention, recentApproved, olympiadYear } =
-    data;
+  const schools = {
+    totalAccounts: n(data.schools?.totalAccounts),
+    withRegistration: n(data.schools?.withRegistration),
+    draft: n(data.schools?.draft),
+    underReview: n(data.schools?.underReview),
+    approved: n(data.schools?.approved),
+    rejected: n(data.schools?.rejected),
+    incomplete: n(data.schools?.incomplete),
+  };
+  const students = {
+    approved: n(data.students?.approved),
+    underReview: n(data.students?.underReview),
+    totalNamed: n(data.students?.totalNamed),
+    imo: n(data.students?.imo),
+    iso: n(data.students?.iso),
+    ieo: n(data.students?.ieo),
+    imoApproved: n(data.students?.imoApproved),
+    isoApproved: n(data.students?.isoApproved),
+    ieoApproved: n(data.students?.ieoApproved),
+  };
+  const payments = {
+    pending: n(data.payments?.pending),
+    verified: n(data.payments?.verified),
+    rejected: n(data.payments?.rejected),
+    pendingAmount: n(data.payments?.pendingAmount),
+    verifiedAmount: n(data.payments?.verifiedAmount),
+    awaitingReview: n(data.payments?.awaitingReview),
+  };
+  const attention = Array.isArray(data.attention) ? data.attention : [];
+  const recentApproved = Array.isArray(data.recentApproved)
+    ? data.recentApproved
+    : [];
+
   const pipelineTotal =
     schools.draft + schools.underReview + schools.approved + schools.rejected ||
     1;
@@ -208,7 +245,7 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
           <p className="mt-1 text-sm text-muted">
             Live overview for{" "}
             <span className="font-semibold text-brand">
-              Olympiad Year {olympiadYear?.label || "—"}
+              Olympiad Year {OLYMPIAD_YEAR_LABEL}
             </span>
             . Counts refresh automatically.
           </p>
@@ -299,7 +336,7 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
           <div>
             <h2 className="text-lg font-bold text-brand">Registration pipeline</h2>
             <p className="mt-1 text-sm text-muted">
-              Active Olympiad Year status mix
+              Status mix for Olympiad Year {OLYMPIAD_YEAR_LABEL}
             </p>
           </div>
           <div className="space-y-4">
@@ -368,102 +405,46 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
             />
           </div>
           <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
-            {(
-              [
-                ["IMO approved", students.imoApproved],
-                ["ISO approved", students.isoApproved],
-                ["IEO approved", students.ieoApproved],
-              ] as const
-            ).map(([label, value]) => (
-              <div
-                key={label}
-                className="rounded-xl border border-border bg-slate-50/80 px-3 py-2.5"
-              >
-                <p className="text-xs font-semibold text-muted">{label}</p>
-                <p className="mt-1 text-xl font-bold tabular-nums text-brand">
-                  {value.toLocaleString("en-IN")}
-                </p>
-              </div>
-            ))}
+            <div className="rounded-xl bg-slate-50 px-3 py-2">
+              <p className="text-xs font-semibold text-muted">Named students</p>
+              <p className="mt-0.5 text-lg font-bold text-brand">
+                {students.totalNamed.toLocaleString("en-IN")}
+              </p>
+            </div>
+            <div className="rounded-xl bg-slate-50 px-3 py-2">
+              <p className="text-xs font-semibold text-muted">In approved schools</p>
+              <p className="mt-0.5 text-lg font-bold text-brand">
+                {students.approved.toLocaleString("en-IN")}
+              </p>
+            </div>
+            <div className="rounded-xl bg-slate-50 px-3 py-2">
+              <p className="text-xs font-semibold text-muted">Verified fees</p>
+              <p className="mt-0.5 text-lg font-bold text-brand">
+                {formatInr(payments.verifiedAmount)}
+              </p>
+            </div>
           </div>
         </section>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-2">
+          <div className="mb-4 flex items-center justify-between gap-2">
             <div>
               <h2 className="text-lg font-bold text-brand">Needs attention</h2>
-              <p className="mt-1 text-sm text-muted">
-                Under review or rejected — open payment verification
+              <p className="text-sm text-muted">
+                Under review and rejected registrations
               </p>
             </div>
             <Clock3 className="size-5 text-muted" aria-hidden />
           </div>
           {attention.length === 0 ? (
-            <p className="mt-6 rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
+            <p className="rounded-xl bg-green-50 px-4 py-6 text-center text-sm font-medium text-green-800">
               Nothing waiting right now.
             </p>
           ) : (
-            <ul className="mt-4 divide-y divide-border">
+            <ul className="divide-y divide-border">
               {attention.map((row) => (
-                <li key={row.id}>
-                  <Link
-                    href={
-                      row.status === "REJECTED"
-                        ? "/admin/registrations?status=REJECTED"
-                        : "/admin/registrations?status=UNDER_REVIEW"
-                    }
-                    className="flex items-start justify-between gap-3 py-3 transition hover:bg-brand-soft/40"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-brand">
-                        {row.schoolName}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted">
-                        {row.schoolCode} · {row.studentCount} students
-                        {row.amountExpected > 0
-                          ? ` · ${formatInr(row.amountExpected)}`
-                          : ""}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted">
-                        {formatDate(row.submittedAt)}
-                      </p>
-                    </div>
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide",
-                        row.status === "UNDER_REVIEW"
-                          ? "bg-amber-100 text-amber-900"
-                          : "bg-red-100 text-red-800",
-                      )}
-                    >
-                      {statusLabel(row.status)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-lg font-bold text-brand">Recently approved</h2>
-              <p className="mt-1 text-sm text-muted">
-                Latest schools cleared for this Olympiad Year
-              </p>
-            </div>
-            <CheckCircle2 className="size-5 text-green-600" aria-hidden />
-          </div>
-          {recentApproved.length === 0 ? (
-            <p className="mt-6 rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
-              No approved schools yet.
-            </p>
-          ) : (
-            <ul className="mt-4 divide-y divide-border">
-              {recentApproved.map((row) => (
                 <li
                   key={row.id}
                   className="flex items-start justify-between gap-3 py-3"
@@ -472,51 +453,93 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
                     <p className="truncate font-semibold text-brand">
                       {row.schoolName}
                     </p>
+                    <p className="text-xs text-muted">
+                      {row.schoolCode} · {statusLabel(row.status)}
+                      {row.paymentStatus
+                        ? ` · payment ${statusLabel(row.paymentStatus)}`
+                        : ""}
+                    </p>
                     <p className="mt-0.5 text-xs text-muted">
-                      {row.schoolCode} · {row.studentCount} students
+                      {formatDate(row.submittedAt)}
                     </p>
                   </div>
-                  <span className="shrink-0 text-xs text-muted">
-                    {formatDate(row.updatedAt)}
-                  </span>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold tabular-nums text-brand">
+                      {n(row.studentCount)} students
+                    </p>
+                    {n(row.amountExpected) > 0 ? (
+                      <p className="text-xs text-muted">
+                        {formatInr(n(row.amountExpected))}
+                      </p>
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>
           )}
-          <div className="mt-3 border-t border-border pt-3">
-            <Link
-              href="/admin/schools"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline"
-            >
-              All approved schools
-              <ArrowRight className="size-3.5" aria-hidden />
-            </Link>
+        </section>
+
+        <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-brand">Recently approved</h2>
+              <p className="text-sm text-muted">
+                Latest schools cleared for this Olympiad Year
+              </p>
+            </div>
+            <CheckCircle2 className="size-5 text-green-600" aria-hidden />
           </div>
+          {recentApproved.length === 0 ? (
+            <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-muted">
+              No approved schools yet.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {recentApproved.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-brand">
+                      {row.schoolName}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {row.schoolCode} · {formatDate(row.updatedAt)}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold tabular-nums text-brand">
+                    {n(row.studentCount)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
 
       <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-brand">Quick actions</h2>
+        <h2 className="text-lg font-bold text-brand">Quick links</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
-              title: "Verify payments",
-              text: "Approve or reject submitted proofs",
-              href: "/admin/registrations?status=UNDER_REVIEW",
+              title: "Schools",
+              text: "Approved school list",
+              href: "/admin/schools",
             },
             {
-              title: "Incomplete follow-up",
-              text: "Schools still in draft or rejected",
-              href: "/admin/incomplete-registrations",
-            },
-            {
-              title: "Student list",
-              text: "Browse and export approved students",
+              title: "Students",
+              text: "Named students & exports",
               href: "/admin/students",
             },
             {
-              title: "Results tools",
-              text: "Upload, update, or search results",
+              title: "Upload results",
+              text: "Excel or manual entry",
+              href: "/admin/results/upload",
+            },
+            {
+              title: "Results",
+              text: "Search and manage results",
               href: "/admin/results",
             },
           ].map((item) => (
@@ -554,6 +577,10 @@ export default function AdminDashboardPage() {
           {error instanceof Error
             ? error.message
             : "Could not load dashboard data."}
+        </p>
+        <p className="mt-2 text-xs text-red-700/80">
+          If you just updated the database, redeploy the backend so it matches
+          the new schema, then hard-refresh this page.
         </p>
         <button
           type="button"

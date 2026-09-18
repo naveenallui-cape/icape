@@ -50,7 +50,7 @@ export type SchoolRegistration = {
   gradeCounts: Record<string, number>;
   rejectionNote: string | null;
   submittedAt: string | null;
-  olympiadYear: { id: string; label: string; code: string };
+  olympiadYear: { label: string; code: string };
   students: RegistrationStudent[];
   feeExpected: number;
   payment: {

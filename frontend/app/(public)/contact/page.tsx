@@ -56,7 +56,7 @@ const contactCards = [
 const helpLinks = [
   {
     title: "Registration forms",
-    description: "Download school and student forms for 2026-27.",
+    description: "Download school and student forms for 2026-2027.",
     href: "/registration-forms",
     icon: FileText,
   },
@@ -68,7 +68,7 @@ const helpLinks = [
   },
   {
     title: "Exam schedule",
-    description: "IMO, ISO, and IEO dates for Olympiad Year 2026-27.",
+    description: "IMO, ISO, and IEO dates for Olympiad Year 2026-2027.",
     href: "/exam-schedule",
     icon: CalendarDays,
   },
@@ -78,7 +78,7 @@ export default function ContactPage() {
   return (
     <PageShell
       title="Contact us"
-      description="Reach I-CAPE Pvt. Ltd for school registration, exam support, and Olympiad Year 2026-27 queries."
+      description="Reach I-CAPE Pvt. Ltd for school registration, exam support, and Olympiad Year 2026-2027 queries."
     >
       <div className="space-y-12">
         <p className="max-w-3xl text-base leading-relaxed text-muted sm:text-lg">

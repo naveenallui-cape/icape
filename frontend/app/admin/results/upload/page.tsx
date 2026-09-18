@@ -5,7 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest, getApiUrl } from "@/lib/api";
-import { RESULT_GRADES, RESULT_OLYMPIADS } from "@/lib/results";
+import { CURRENT_OLYMPIAD_YEAR, RESULT_GRADES, RESULT_OLYMPIADS } from "@/lib/results";
 import { cn } from "@/lib/utils";
 
 type EditableInvalidRow = {
@@ -156,7 +156,6 @@ type UploadHistoryItem = {
   errorSummary?: string | null;
   createdAt: string;
   olympiad: { code: string };
-  olympiadYear: { label: string };
   uploadedBy: { name: string };
 };
 
@@ -181,7 +180,6 @@ const FIELD_LABELS: Record<string, string> = {
 
 export default function AdminUploadResultsPage() {
   const [olympiadCode, setOlympiadCode] = useState("IMO");
-  const [olympiadYear, setOlympiadYear] = useState("2025-26");
   const [grade, setGrade] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
@@ -319,7 +317,7 @@ export default function AdminUploadResultsPage() {
     const body = new FormData();
     body.append("file", file);
     body.append("olympiadCode", olympiadCode);
-    body.append("olympiadYear", olympiadYear);
+    body.append("olympiadYear", CURRENT_OLYMPIAD_YEAR);
     if (grade) body.append("grade", grade);
     if (confirm && readyCorrections.length > 0) {
       body.append(
@@ -441,12 +439,6 @@ export default function AdminUploadResultsPage() {
       return;
     }
 
-    if (!olympiadYear.trim()) {
-      setSavingManual(false);
-      setError("Olympiad Year is required (e.g. 2025-26).");
-      return;
-    }
-
     const payload = completeRows.map((r) => ({
       registrationNumber: r.registrationNumber.trim(),
       studentName: r.studentName.trim(),
@@ -456,7 +448,7 @@ export default function AdminUploadResultsPage() {
       state: r.state.trim() || undefined,
       grade: Number(r.grade),
       olympiadCode: String(olympiadCode).toUpperCase(),
-      olympiadYear: olympiadYear.trim(),
+      olympiadYear: CURRENT_OLYMPIAD_YEAR,
       marksObtained: Number(r.marksObtained),
       totalMarks: r.totalMarks ? Number(r.totalMarks) : undefined,
       rank:
@@ -494,7 +486,7 @@ export default function AdminUploadResultsPage() {
             ? res.data.errors
                 .map((err) => `Row ${err.index + 1}: ${err.message}`)
                 .join(" · ")
-            : "No rows were saved. Check Olympiad Year and required fields.",
+            : "No rows were saved. Check required fields.",
         );
         await loadHistory();
         return;
@@ -597,24 +589,6 @@ export default function AdminUploadResultsPage() {
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-brand">
-                Olympiad Year
-              </label>
-              <Input
-                value={olympiadYear}
-                onChange={(e) => setOlympiadYear(e.target.value)}
-                placeholder="2025-26"
-                list="olympiad-year-options"
-              />
-              <datalist id="olympiad-year-options">
-                <option value="2025-26" />
-                <option value="2026-27" />
-              </datalist>
-              <p className="mt-1 text-xs text-muted">
-                Must match an existing Olympiad Year (e.g. 2025-26). Saved rows appear under Results for that year.
-              </p>
             </div>
           </div>
 
@@ -902,17 +876,6 @@ export default function AdminUploadResultsPage() {
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-brand">
-                Olympiad Year
-              </label>
-              <input
-                value={olympiadYear}
-                onChange={(e) => setOlympiadYear(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-border px-3 text-sm"
-                placeholder="2025-26"
-              />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-brand">
@@ -1300,7 +1263,6 @@ export default function AdminUploadResultsPage() {
                 <tr>
                   <th className="px-3 py-2">File</th>
                   <th className="px-3 py-2">Olympiad</th>
-                  <th className="px-3 py-2">Year</th>
                   <th className="px-3 py-2">Imported</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Progress</th>
@@ -1341,7 +1303,6 @@ export default function AdminUploadResultsPage() {
                         )}
                       </td>
                       <td className="px-3 py-2">{item.olympiad.code}</td>
-                      <td className="px-3 py-2">{item.olympiadYear.label}</td>
                       <td className="px-3 py-2">
                         {item.importedRows}/{target || item.totalRows}
                       </td>

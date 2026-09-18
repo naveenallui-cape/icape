@@ -1,7 +1,7 @@
 export const REGISTRATION_DEADLINE_LABEL = "30th September 2026";
 /** Inclusive last calendar day for registration (local timezone). */
 export const REGISTRATION_DEADLINE_ISO = "2026-09-30";
-export const OLYMPIAD_YEAR_LABEL = "2026-27";
+export const OLYMPIAD_YEAR_LABEL = "2026-2027";
 export const REGISTRATION_FEE_LABEL = "INR 150 per student per Olympiad";
 export const WHATSAPP_NUMBER = "+91 80745 63902";
 /** Digits only, country code included (no +) — for WhatsApp app deep links */
@@ -47,5 +47,5 @@ export const ANNOUNCEMENT_OLYMPIADS = [
   },
 ] as const;
 
-/** localStorage key — bump year segment when Olympiad Year changes */
-export const INTRO_POPUP_STORAGE_KEY = "icape-intro-popup-dismissed-2026-27";
+/** localStorage key — bump when Olympiad Year changes */
+export const INTRO_POPUP_STORAGE_KEY = "icape-intro-popup-dismissed-2026-2027";

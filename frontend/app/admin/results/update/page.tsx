@@ -1,11 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { Pencil, School, UserRound, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/api";
-import { RESULT_OLYMPIADS } from "@/lib/results";
+import { CURRENT_OLYMPIAD_YEAR, RESULT_OLYMPIADS } from "@/lib/results";
 import { cn } from "@/lib/utils";
 
 type AdminResultRow = {
@@ -15,7 +15,6 @@ type AdminResultRow = {
   schoolCode: string;
   schoolName: string;
   olympiad: string;
-  olympiadYear: string;
   grade: number;
   marksObtained: number | null;
   totalMarks: number | null;
@@ -49,9 +48,7 @@ function toDraft(row: AdminResultRow): Draft {
 export default function AdminUpdateResultsPage() {
   const [mode, setMode] = useState<"student" | "school">("student");
   const [query, setQuery] = useState("");
-  const [olympiadYear, setOlympiadYear] = useState("");
   const [olympiad, setOlympiad] = useState("");
-  const [yearOptions, setYearOptions] = useState<string[]>([]);
 
   const [rows, setRows] = useState<AdminResultRow[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -60,17 +57,6 @@ export default function AdminUpdateResultsPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    void (async () => {
-      const meta = await apiRequest<{
-        years: Array<{ label: string; isActive?: boolean }>;
-      }>("/results/meta");
-      if (meta.success && meta.data?.years?.length) {
-        setYearOptions(meta.data.years.map((y) => y.label));
-      }
-    })();
-  }, []);
 
   async function search(e?: FormEvent) {
     e?.preventDefault();
@@ -94,8 +80,8 @@ export default function AdminUpdateResultsPage() {
       page: "1",
       limit: "100",
       q,
+      olympiadYear: CURRENT_OLYMPIAD_YEAR,
     });
-    if (olympiadYear.trim()) params.set("olympiadYear", olympiadYear.trim());
     if (olympiad) params.set("olympiad", olympiad);
 
     const res = await apiRequest<{
@@ -232,9 +218,7 @@ export default function AdminUpdateResultsPage() {
       },
     }));
     setEditingId(null);
-    setMessage(
-      `Updated ${row.registrationNumber} · ${row.olympiad} (${row.olympiadYear}).`,
-    );
+    setMessage(`Updated ${row.registrationNumber} · ${row.olympiad}.`);
   }
 
   function cancelEdit(row: AdminResultRow) {
@@ -296,7 +280,7 @@ export default function AdminUpdateResultsPage() {
         onSubmit={(e) => void search(e)}
         className="rounded-2xl border border-border bg-white p-5"
       >
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-3">
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-sm font-semibold text-brand">
               {mode === "student" ? "Student ID (Reg. No.)" : "School ID / Name"}
@@ -310,23 +294,6 @@ export default function AdminUpdateResultsPage() {
                   : "School code or school name"
               }
             />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-brand">
-              Olympiad Year
-            </label>
-            <select
-              value={olympiadYear}
-              onChange={(e) => setOlympiadYear(e.target.value)}
-              className="h-9 w-full rounded-md border border-border px-3 text-sm"
-            >
-              <option value="">All years</option>
-              {yearOptions.map((label) => (
-                <option key={label} value={label}>
-                  {label}
-                </option>
-              ))}
-            </select>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-brand">
@@ -364,7 +331,6 @@ export default function AdminUpdateResultsPage() {
                 <th className="px-3 py-3">Student</th>
                 <th className="px-3 py-3">School</th>
                 <th className="px-3 py-3">Olympiad</th>
-                <th className="px-3 py-3">Year</th>
                 <th className="px-3 py-3">Grade</th>
                 <th className="px-3 py-3">Marks</th>
                 <th className="px-3 py-3">Out of</th>
@@ -395,7 +361,6 @@ export default function AdminUpdateResultsPage() {
                     <td className="px-3 py-3 font-semibold text-brand">
                       {row.olympiad}
                     </td>
-                    <td className="px-3 py-3">{row.olympiadYear}</td>
                     <td className="px-3 py-3">{row.grade}</td>
                     <td className="px-3 py-2">
                       {editing ? (

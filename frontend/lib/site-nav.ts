@@ -61,7 +61,7 @@ export const homeCards: HomeCard[] = [
   {
     title: "ONLINE SCHOOL REGISTRATION & LOGIN",
     description:
-      "Create a school account, fill school & student details, and submit payment online for Olympiad Year 2026-27.",
+      "Create a school account, fill school & student details, and submit payment online for Olympiad Year 2026-2027.",
     href: "/school/login",
     image:
       "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&h=500&fit=crop&q=80",
@@ -70,7 +70,7 @@ export const homeCards: HomeCard[] = [
   {
     title: "DOWNLOAD REGISTRATION FORMS",
     description:
-      "Download School & Student Registration Forms For Olympiad Year 2026-27",
+      "Download School & Student Registration Forms For Olympiad Year 2026-2027",
     href: "/registration-forms",
     image:
       "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=800&h=500&fit=crop&q=80",
@@ -78,7 +78,7 @@ export const homeCards: HomeCard[] = [
   },
   {
     title: "EXAM SCHEDULE",
-    description: "i-CAPE Exam Schedule for Olympiad Year 2026-27",
+    description: "i-CAPE Exam Schedule for Olympiad Year 2026-2027",
     href: "/exam-schedule",
     image:
       "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=800&h=500&fit=crop&q=80",
@@ -140,7 +140,7 @@ export const homeCards: HomeCard[] = [
   {
     title: "RESULTS",
     description:
-      "Check student and school olympiad results for Olympiad Year 2025-26.",
+      "Check student and school olympiad results for Olympiad Year 2026-2027.",
     href: "/results",
     image:
       "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=800&h=500&fit=crop&q=80",

@@ -1,5 +1,8 @@
 export type OlympiadCode = "IMO" | "ISO" | "IEO";
 
+/** Fixed Olympiad Year — no year picker in admin results. */
+export const CURRENT_OLYMPIAD_YEAR = "2026-2027";
+
 export type StudentResultPayload = {
   student: {
     name: string;
@@ -14,7 +17,6 @@ export type StudentResultPayload = {
     state: string | null;
   };
   olympiadYear: {
-    id: string;
     label: string;
     code: string;
   };

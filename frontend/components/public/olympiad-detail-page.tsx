@@ -31,7 +31,7 @@ export function OlympiadDetailPage({ content }: Props) {
   return (
     <PageShell
       title={`${content.code} — ${content.fullName}`}
-      description={`${content.fullName} by i-CAPE for Grades 3 to 10 · Olympiad Year 2026-27.`}
+      description={`${content.fullName} by i-CAPE for Grades 3 to 10 · Olympiad Year 2026-2027.`}
     >
       <div className="space-y-12">
         <section className="max-w-4xl space-y-4 text-base leading-relaxed text-muted sm:text-lg">
@@ -42,7 +42,7 @@ export function OlympiadDetailPage({ content }: Props) {
 
         <section className="space-y-5">
           <SectionHeading>
-            {content.fullName} ({content.code}) Exam 2026-27 Overview
+            {content.fullName} ({content.code}) Exam 2026-2027 Overview
           </SectionHeading>
           <p className="max-w-3xl text-base text-muted sm:text-lg">
             Know important details about the i-CAPE {content.fullName} (

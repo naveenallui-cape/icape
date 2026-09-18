@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/api";
 import { AdminSearchField } from "@/components/admin/admin-search-field";
-import { RESULT_GRADES, RESULT_OLYMPIADS } from "@/lib/results";
+import {
+  CURRENT_OLYMPIAD_YEAR,
+  RESULT_GRADES,
+  RESULT_OLYMPIADS,
+} from "@/lib/results";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 
 type AdminResultRow = {
@@ -14,7 +18,6 @@ type AdminResultRow = {
   schoolCode: string;
   schoolName: string;
   olympiad: string;
-  olympiadYear: string;
   grade: number;
   marksObtained: number | null;
   totalMarks: number | null;
@@ -27,7 +30,6 @@ type AdminResultRow = {
 export default function AdminResultsPage() {
   const [q, setQ] = useState("");
   const [olympiad, setOlympiad] = useState("");
-  const [olympiadYear, setOlympiadYear] = useState("");
   const [grade, setGrade] = useState("");
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<AdminResultRow[]>([]);
@@ -35,26 +37,14 @@ export default function AdminResultsPage() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [yearOptions, setYearOptions] = useState<string[]>([]);
   const debouncedQ = useDebouncedValue(q, 300);
   const appliedQ = debouncedQ.trim();
 
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    void (async () => {
-      const meta = await apiRequest<{
-        years: Array<{ label: string; isActive?: boolean }>;
-      }>("/results/meta");
-      if (meta.success && meta.data?.years?.length) {
-        setYearOptions(meta.data.years.map((y) => y.label));
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
     setPage(1);
-  }, [appliedQ, olympiad, olympiadYear, grade]);
+  }, [appliedQ, olympiad, grade]);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,10 +54,10 @@ export default function AdminResultsPage() {
       const params = new URLSearchParams({
         page: String(page),
         limit: "25",
+        olympiadYear: CURRENT_OLYMPIAD_YEAR,
       });
       if (appliedQ) params.set("q", appliedQ);
       if (olympiad) params.set("olympiad", olympiad);
-      if (olympiadYear.trim()) params.set("olympiadYear", olympiadYear.trim());
       if (grade) params.set("grade", grade);
       const res = await apiRequest<{
         results: AdminResultRow[];
@@ -87,7 +77,7 @@ export default function AdminResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [page, appliedQ, olympiad, olympiadYear, grade, reloadToken]);
+  }, [page, appliedQ, olympiad, grade, reloadToken]);
 
   async function onDelete(id: string) {
     if (!window.confirm("Delete this result record?")) return;
@@ -106,24 +96,12 @@ export default function AdminResultsPage() {
         <p className="text-muted">Filter and manage olympiad result records.</p>
       </div>
 
-      <div className="grid gap-3 rounded-2xl border border-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 rounded-2xl border border-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-3">
         <AdminSearchField
           value={q}
           onChange={setQ}
           placeholder="Reg no / student name"
         />
-        <select
-          value={olympiadYear}
-          onChange={(e) => setOlympiadYear(e.target.value)}
-          className="h-9 rounded-md border border-border px-3 text-sm"
-        >
-          <option value="">All olympiad years</option>
-          {yearOptions.map((label) => (
-            <option key={label} value={label}>
-              {label}
-            </option>
-          ))}
-        </select>
         <select
           value={olympiad}
           onChange={(e) => setOlympiad(e.target.value)}
@@ -160,7 +138,6 @@ export default function AdminResultsPage() {
               <th className="px-3 py-3">Student</th>
               <th className="px-3 py-3">School</th>
               <th className="px-3 py-3">Olympiad</th>
-              <th className="px-3 py-3">Year</th>
               <th className="px-3 py-3">Grade</th>
               <th className="px-3 py-3">Marks</th>
               <th className="px-3 py-3">Rank</th>
@@ -171,13 +148,13 @@ export default function AdminResultsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-muted">
+                <td colSpan={9} className="px-3 py-8 text-center text-muted">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-muted">
+                <td colSpan={9} className="px-3 py-8 text-center text-muted">
                   No results found
                 </td>
               </tr>
@@ -195,7 +172,6 @@ export default function AdminResultsPage() {
                     </span>
                   </td>
                   <td className="px-3 py-3">{row.olympiad}</td>
-                  <td className="px-3 py-3">{row.olympiadYear}</td>
                   <td className="px-3 py-3">{row.grade}</td>
                   <td className="px-3 py-3">
                     {row.marksObtained}/{row.totalMarks} ({row.percentage}%)
