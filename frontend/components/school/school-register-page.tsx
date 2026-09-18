@@ -18,6 +18,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { schoolRegister } from "@/lib/school-api";
+import { broadcastAuthChanged } from "@/lib/auth-session-sync";
 import { MOBILE_DIGITS_REGEX, MOBILE_ERROR } from "@/lib/mobile";
 import {
   OLYMPIAD_YEAR_LABEL,
@@ -69,6 +70,7 @@ export function SchoolRegisterPage() {
       setError(res.message);
       return;
     }
+    broadcastAuthChanged();
     router.prefetch("/school/portal");
     window.location.assign("/school/portal?tab=registration");
   }

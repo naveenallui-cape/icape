@@ -1,7 +1,7 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   LogOut,
@@ -10,22 +10,27 @@ import {
   UserRound,
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
+import {
+  broadcastAuthChanged,
+  subscribeAuthChanged,
+} from "@/lib/auth-session-sync";
 import { openNamedTab, TAB_NAMES } from "@/lib/open-named-tab";
 import { schoolAuthMe, schoolLogout } from "@/lib/school-api";
 import { cn } from "@/lib/utils";
 
 type SessionKind = "school" | "admin";
 
+type AuthedSession = {
+  kind: SessionKind;
+  email: string;
+  label: string;
+  href: string;
+};
+
 type SessionState =
   | { status: "loading" }
   | { status: "guest" }
-  | {
-      status: "authed";
-      kind: SessionKind;
-      email: string;
-      label: string;
-      href: string;
-    };
+  | { status: "authed"; sessions: AuthedSession[] };
 
 function emailInitial(email: string) {
   const ch = email.trim().charAt(0);
@@ -48,49 +53,53 @@ export function SiteLoginMenu({
   const [session, setSession] = useState<SessionState>({ status: "loading" });
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadSession = useCallback(async () => {
+    const [adminRes, schoolRes] = await Promise.all([
+      apiRequest<{ email?: string; name?: string }>("/auth/me"),
+      schoolAuthMe(),
+    ]);
 
-    async function load() {
-      const [adminRes, schoolRes] = await Promise.all([
-        apiRequest<{ email?: string; name?: string }>("/auth/me"),
-        schoolAuthMe(),
-      ]);
-      if (cancelled) return;
+    const sessions: AuthedSession[] = [];
 
-      if (schoolRes.success && schoolRes.data?.email) {
-        setSession({
-          status: "authed",
-          kind: "school",
-          email: schoolRes.data.email,
-          label: "School login",
-          href: "/school/portal?tab=registration",
-        });
-        return;
-      }
-
-      if (adminRes.success && adminRes.data) {
-        const email = adminRes.data.email || adminRes.data.name || "admin";
-        setSession({
-          status: "authed",
-          kind: "admin",
-          email,
-          label: "Admin Login",
-          href: "/admin/dashboard",
-        });
-        return;
-      }
-
-      setSession({ status: "guest" });
+    if (schoolRes.success && schoolRes.data?.email) {
+      sessions.push({
+        kind: "school",
+        email: schoolRes.data.email,
+        label: "School portal",
+        href: "/school/portal?tab=registration",
+      });
     }
 
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [pathname]);
+    if (adminRes.success && adminRes.data) {
+      const email = adminRes.data.email || adminRes.data.name || "admin";
+      sessions.push({
+        kind: "admin",
+        email,
+        label: "Admin",
+        href: "/admin/dashboard",
+      });
+    }
+
+    if (sessions.length > 0) {
+      setSession({ status: "authed", sessions });
+      return;
+    }
+
+    setSession({ status: "guest" });
+  }, []);
+
+  useEffect(() => {
+    void loadSession();
+  }, [pathname, loadSession]);
+
+  useEffect(() => {
+    return subscribeAuthChanged(() => {
+      void loadSession();
+    });
+  }, [loadSession]);
 
   const isAuthed = session.status === "authed";
+  const primary = isAuthed ? session.sessions[0] : null;
 
   useEffect(() => {
     setOpen(false);
@@ -114,38 +123,42 @@ export function SiteLoginMenu({
     };
   }, [open]);
 
-  async function onLogout() {
+  async function onLogout(kind?: SessionKind) {
     if (session.status !== "authed") return;
-    if (session.kind === "school") {
-      await schoolLogout();
-    } else {
-      await apiRequest("/auth/logout", { method: "POST" });
+    const targets = kind
+      ? session.sessions.filter((s) => s.kind === kind)
+      : session.sessions;
+
+    for (const s of targets) {
+      if (s.kind === "school") await schoolLogout();
+      else await apiRequest("/auth/logout", { method: "POST" });
     }
-    setSession({ status: "guest" });
+
+    broadcastAuthChanged();
+    await loadSession();
     setOpen(false);
     onNavigate?.();
     router.refresh();
   }
 
-  function openSchool() {
+  function openSchoolLogin() {
     setOpen(false);
     onNavigate?.();
     openNamedTab("/school/login", TAB_NAMES.school);
   }
 
-  function openAdmin() {
+  function openAdminLogin() {
     setOpen(false);
     onNavigate?.();
     openNamedTab("/admin/login", TAB_NAMES.admin);
   }
 
-  function openAuthedApp() {
-    if (session.status !== "authed") return;
+  function openAuthedApp(s: AuthedSession) {
     setOpen(false);
     onNavigate?.();
     openNamedTab(
-      session.href,
-      session.kind === "school" ? TAB_NAMES.school : TAB_NAMES.admin,
+      s.href,
+      s.kind === "school" ? TAB_NAMES.school : TAB_NAMES.admin,
     );
   }
 
@@ -158,7 +171,7 @@ export function SiteLoginMenu({
           "flex w-full items-center gap-2 text-left font-semibold text-brand hover:bg-brand-soft",
           compact ? "rounded-xl px-4 py-3 text-base" : "px-3.5 py-2.5 text-sm",
         )}
-        onClick={openSchool}
+        onClick={openSchoolLogin}
       >
         <University className="size-4 text-muted" aria-hidden />
         School login
@@ -170,7 +183,7 @@ export function SiteLoginMenu({
           "flex w-full items-center gap-2 text-left font-semibold text-brand hover:bg-brand-soft",
           compact ? "rounded-xl px-4 py-3 text-base" : "px-3.5 py-2.5 text-sm",
         )}
-        onClick={openAdmin}
+        onClick={openAdminLogin}
       >
         <Shield className="size-4 text-muted" aria-hidden />
         Admin login
@@ -183,23 +196,26 @@ export function SiteLoginMenu({
       <div className={cn("space-y-1", className)}>
         {session.status === "loading" ? (
           <div className="h-12 rounded-xl bg-brand-soft/60" aria-hidden />
-        ) : isAuthed ? (
+        ) : isAuthed && primary ? (
           <>
-            <button
-              type="button"
-              onClick={openAuthedApp}
-              className="flex w-full items-center gap-3 rounded-xl bg-brand px-4 py-3 text-left text-white"
-            >
-              <span className="inline-flex size-9 items-center justify-center rounded-full bg-accent text-sm font-bold text-brand">
-                {emailInitial(session.email)}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-bold">{session.label}</span>
-                <span className="block truncate text-xs text-white/75">
-                  {session.email}
+            {session.sessions.map((s) => (
+              <button
+                key={s.kind}
+                type="button"
+                onClick={() => openAuthedApp(s)}
+                className="flex w-full items-center gap-3 rounded-xl bg-brand px-4 py-3 text-left text-white"
+              >
+                <span className="inline-flex size-9 items-center justify-center rounded-full bg-accent text-sm font-bold text-brand">
+                  {emailInitial(s.email)}
                 </span>
-              </span>
-            </button>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold">{s.label}</span>
+                  <span className="block truncate text-xs text-white/75">
+                    {s.email}
+                  </span>
+                </span>
+              </button>
+            ))}
             <button
               type="button"
               onClick={() => void onLogout()}
@@ -234,13 +250,13 @@ export function SiteLoginMenu({
         }}
         className="inline-flex h-9 items-center gap-1.5 rounded-md border border-accent bg-accent pl-1.5 pr-2.5 text-sm font-bold text-brand shadow-sm transition hover:bg-accent-hover disabled:opacity-80"
       >
-        {isAuthed ? (
+        {isAuthed && primary ? (
           <>
             <span className="inline-flex size-7 items-center justify-center rounded-full bg-brand text-xs font-bold text-accent">
-              {emailInitial(session.email)}
+              {emailInitial(primary.email)}
             </span>
             <span className="hidden max-w-[7.5rem] truncate lg:inline">
-              {session.label}
+              {session.sessions.length > 1 ? "Account" : primary.label}
             </span>
           </>
         ) : session.status === "loading" ? (
@@ -275,26 +291,30 @@ export function SiteLoginMenu({
         >
           {isAuthed ? (
             <>
-              <div className="border-b border-border px-3.5 py-2.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  {session.label}
-                </p>
-                <p className="mt-0.5 truncate text-sm font-semibold text-brand">
-                  {session.email}
-                </p>
-              </div>
+              {session.sessions.map((s) => (
+                <div key={s.kind}>
+                  <div className="border-b border-border px-3.5 py-2.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                      {s.label}
+                    </p>
+                    <p className="mt-0.5 truncate text-sm font-semibold text-brand">
+                      {s.email}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="block w-full px-3.5 py-2.5 text-left text-sm font-semibold text-brand hover:bg-brand-soft"
+                    onClick={() => openAuthedApp(s)}
+                  >
+                    {s.kind === "school" ? "Open portal" : "Open dashboard"}
+                  </button>
+                </div>
+              ))}
               <button
                 type="button"
                 role="menuitem"
-                className="block w-full px-3.5 py-2.5 text-left text-sm font-semibold text-brand hover:bg-brand-soft"
-                onClick={openAuthedApp}
-              >
-                {session.kind === "school" ? "Open portal" : "Open dashboard"}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-sm font-semibold text-brand hover:bg-brand-soft"
+                className="flex w-full items-center gap-2 border-t border-border px-3.5 py-2.5 text-left text-sm font-semibold text-brand hover:bg-brand-soft"
                 onClick={() => void onLogout()}
               >
                 <LogOut className="size-4" aria-hidden />

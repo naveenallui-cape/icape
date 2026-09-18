@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { schoolLogin } from "@/lib/school-api";
+import { broadcastAuthChanged } from "@/lib/auth-session-sync";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -31,6 +32,7 @@ export function SchoolLoginForm() {
       setError(res.message);
       return;
     }
+    broadcastAuthChanged();
     window.location.assign("/school/portal?tab=registration");
   }
 

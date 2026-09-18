@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fetchMyRegistration, schoolAuthMe, schoolLogout } from "@/lib/school-api";
+import { broadcastAuthChanged } from "@/lib/auth-session-sync";
 import { cn } from "@/lib/utils";
 
 export type SchoolPortalTab =
@@ -117,6 +118,7 @@ function SchoolShellInner({ children }: { children: ReactNode }) {
 
   async function logout() {
     await schoolLogout();
+    broadcastAuthChanged();
     window.location.assign("/school/login");
   }
 

@@ -14,6 +14,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { apiRequest } from "@/lib/api";
+import { broadcastAuthChanged } from "@/lib/auth-session-sync";
 import { OLYMPIAD_YEAR_LABEL } from "@/lib/registration-announcement";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +74,7 @@ export function AdminLoginForm() {
     } catch {
       /* ignore */
     }
+    broadcastAuthChanged();
     window.location.assign("/admin/dashboard");
   }
 

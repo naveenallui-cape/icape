@@ -14,6 +14,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { schoolLogin } from "@/lib/school-api";
+import { broadcastAuthChanged } from "@/lib/auth-session-sync";
 import {
   OLYMPIAD_YEAR_LABEL,
   REGISTRATION_DEADLINE_LABEL,
@@ -59,6 +60,7 @@ export function SchoolLoginPage() {
       setError(res.message || "Login failed");
       return;
     }
+    broadcastAuthChanged();
     window.location.assign("/school/portal?tab=registration");
   }
 

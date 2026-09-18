@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
+import { broadcastAuthChanged } from "@/lib/auth-session-sync";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -174,6 +175,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   async function logout() {
     clearAdminCache();
     await apiRequest("/auth/logout", { method: "POST" });
+    broadcastAuthChanged();
     router.replace("/admin/login");
   }
 
