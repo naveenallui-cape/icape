@@ -67,7 +67,12 @@ export function SchoolResultsPanel() {
     setLoading(false);
     if (!res.success || !res.data) {
       setData(null);
-      setError(res.message || "No results found");
+      setError(
+        !res.success && res.status === 403
+          ? res.message ||
+              "Results are not published yet. Please check back after i-CAPE releases them."
+          : res.message || "No results found",
+      );
       return;
     }
     setData(res.data);
@@ -113,7 +118,7 @@ export function SchoolResultsPanel() {
       <div>
         <h1 className="text-2xl font-bold text-brand">Results</h1>
         <p className="mt-1 text-sm text-muted">
-          View your school&apos;s olympiad results. Filter by olympiad, grade, or
+          View your school&apos;s olympiad results. Search by olympiad, grade, or
           student.
         </p>
       </div>
@@ -171,7 +176,7 @@ export function SchoolResultsPanel() {
           </div>
           <div className="flex items-end">
             <Button type="submit" className="w-full" variant="accent">
-              Apply filters
+              Search results
             </Button>
           </div>
         </div>

@@ -70,7 +70,7 @@ export function SchoolRegisterPage() {
       return;
     }
     router.prefetch("/school/portal");
-    window.location.assign("/school/portal?tab=dashboard");
+    window.location.assign("/school/portal?tab=registration");
   }
 
   return (

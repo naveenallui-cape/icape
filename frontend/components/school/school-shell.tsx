@@ -9,7 +9,6 @@ import {
   ClipboardList,
   ClipboardPen,
   FileText,
-  LayoutDashboard,
   LogOut,
   Menu,
   Trophy,
@@ -20,7 +19,6 @@ import { fetchMyRegistration, schoolAuthMe, schoolLogout } from "@/lib/school-ap
 import { cn } from "@/lib/utils";
 
 export type SchoolPortalTab =
-  | "dashboard"
   | "registration"
   | "list"
   | "results"
@@ -31,13 +29,12 @@ export type SchoolPortalTab =
 const NAV: Array<{
   tab: SchoolPortalTab;
   label: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof ClipboardPen;
   /** Show only before approval */
   hideWhenApproved?: boolean;
   /** Show only after approval */
   requiresApproved?: boolean;
 }> = [
-  { tab: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   {
     tab: "registration",
     label: "Registration",
@@ -71,7 +68,8 @@ function SchoolShellInner({ children }: { children: ReactNode }) {
   const [schoolLabel, setSchoolLabel] = useState("School portal");
   const [approved, setApproved] = useState(false);
 
-  const activeTab = (searchParams.get("tab") || "dashboard") as SchoolPortalTab;
+  const rawTab = searchParams.get("tab") || "registration";
+  const activeTab = rawTab as SchoolPortalTab;
 
   useEffect(() => {
     let cancelled = false;
@@ -103,16 +101,19 @@ function SchoolShellInner({ children }: { children: ReactNode }) {
   }, [router, pathname]);
 
   // Approved → no Registration page. Not approved → no Registered students page.
+  // Legacy dashboard tab → Registration (or list if approved).
   useEffect(() => {
     if (!ready) return;
-    if (approved && activeTab === "registration") {
-      router.replace("/school/portal?tab=list");
+    if (rawTab === "dashboard" || (!approved && activeTab === "list")) {
+      router.replace(
+        approved ? "/school/portal?tab=list" : "/school/portal?tab=registration",
+      );
       return;
     }
-    if (!approved && activeTab === "list") {
-      router.replace("/school/portal?tab=registration");
+    if (approved && activeTab === "registration") {
+      router.replace("/school/portal?tab=list");
     }
-  }, [ready, approved, activeTab, router]);
+  }, [ready, approved, activeTab, rawTab, router]);
 
   async function logout() {
     await schoolLogout();

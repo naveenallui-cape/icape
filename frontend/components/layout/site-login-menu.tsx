@@ -64,7 +64,7 @@ export function SiteLoginMenu({
           kind: "school",
           email: schoolRes.data.email,
           label: "School login",
-          href: "/school/portal?tab=dashboard",
+          href: "/school/portal?tab=registration",
         });
         return;
       }

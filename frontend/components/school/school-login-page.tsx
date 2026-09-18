@@ -59,7 +59,7 @@ export function SchoolLoginPage() {
       setError(res.message || "Login failed");
       return;
     }
-    window.location.assign("/school/portal?tab=dashboard");
+    window.location.assign("/school/portal?tab=registration");
   }
 
   return (

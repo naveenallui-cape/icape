@@ -15,7 +15,7 @@ export default function SchoolRegisterRoute() {
       const res = await schoolAuthMe();
       if (cancelled) return;
       if (res.success && res.data?.email) {
-        router.replace("/school/portal?tab=dashboard");
+        router.replace("/school/portal?tab=registration");
         return;
       }
       setReady(true);

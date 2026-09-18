@@ -22,7 +22,6 @@ import {
   type StudentGrade,
 } from "@/components/school/grade-switch-buttons";
 import { GradeTableFrame } from "@/components/school/grade-table-frame";
-import { SchoolDashboard } from "@/components/school/school-dashboard";
 import {
   fetchMyRegistration,
   importStudentsExcel,
@@ -343,7 +342,7 @@ function resolvePortalStep(data: SchoolRegistration): number {
 function SchoolPortalPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tab = searchParams.get("tab") || "dashboard";
+  const tab = searchParams.get("tab") || "registration";
   const [loading, setLoading] = useState(true);
   const [reg, setReg] = useState<SchoolRegistration | null>(null);
   const [step, setStep] = useState(1);
@@ -434,8 +433,8 @@ function SchoolPortalPage() {
       goToStep(nextStep);
       router.replace("/school/portal?tab=registration", { scroll: false });
     }
-    if (tab === "help") {
-      router.replace("/school/portal?tab=dashboard", { scroll: false });
+    if (tab === "help" || tab === "dashboard") {
+      router.replace("/school/portal?tab=registration", { scroll: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, router]);
@@ -1182,25 +1181,6 @@ function SchoolPortalPage() {
           </p>
         </div>
       </div>
-    );
-  }
-
-  if (tab === "dashboard") {
-    return (
-      <SchoolDashboard
-        reg={reg}
-        students={students}
-        schoolDone={schoolDone}
-        studentsReady={studentsCheck.ok}
-        paymentDone={paymentDone}
-        onOpenTab={openTab}
-        onGoToStep={goToStep}
-        onResubmit={() => {
-          setResubmitAfterReject(true);
-          goToStep(3);
-          openTab("registration");
-        }}
-      />
     );
   }
 
