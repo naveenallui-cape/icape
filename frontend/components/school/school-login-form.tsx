@@ -31,7 +31,7 @@ export function SchoolLoginForm() {
       setError(res.message);
       return;
     }
-    window.location.assign("/school/portal");
+    window.location.assign("/school/portal?tab=dashboard");
   }
 
   return (

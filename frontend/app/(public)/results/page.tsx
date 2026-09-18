@@ -5,7 +5,7 @@ import { ResultsLanding } from "@/components/public/results-landing";
 export const metadata: Metadata = {
   title: "Check Olympiad Results | i-CAPE",
   description:
-    "View student and school olympiad results for i-CAPE Innovative Talent Search Examination.",
+    "View student olympiad results for i-CAPE Innovative Talent Search Examination. Schools view school results in the school portal.",
 };
 
 export default function ResultsPage() {

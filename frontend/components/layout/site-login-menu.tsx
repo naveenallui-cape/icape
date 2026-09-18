@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -11,6 +10,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
+import { openNamedTab, TAB_NAMES } from "@/lib/open-named-tab";
 import { schoolAuthMe, schoolLogout } from "@/lib/school-api";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +64,7 @@ export function SiteLoginMenu({
           kind: "school",
           email: schoolRes.data.email,
           label: "School login",
-          href: "/school/portal",
+          href: "/school/portal?tab=dashboard",
         });
         return;
       }
@@ -127,38 +127,54 @@ export function SiteLoginMenu({
     router.refresh();
   }
 
+  function openSchool() {
+    setOpen(false);
+    onNavigate?.();
+    openNamedTab("/school/login", TAB_NAMES.school);
+  }
+
+  function openAdmin() {
+    setOpen(false);
+    onNavigate?.();
+    openNamedTab("/admin/login", TAB_NAMES.admin);
+  }
+
+  function openAuthedApp() {
+    if (session.status !== "authed") return;
+    setOpen(false);
+    onNavigate?.();
+    openNamedTab(
+      session.href,
+      session.kind === "school" ? TAB_NAMES.school : TAB_NAMES.admin,
+    );
+  }
+
   const guestLinks = (
     <>
-      <Link
-        href="/school/login"
+      <button
+        type="button"
         role="menuitem"
         className={cn(
-          "flex w-full items-center gap-2 font-semibold text-brand hover:bg-brand-soft",
+          "flex w-full items-center gap-2 text-left font-semibold text-brand hover:bg-brand-soft",
           compact ? "rounded-xl px-4 py-3 text-base" : "px-3.5 py-2.5 text-sm",
         )}
-        onClick={() => {
-          setOpen(false);
-          onNavigate?.();
-        }}
+        onClick={openSchool}
       >
         <University className="size-4 text-muted" aria-hidden />
         School login
-      </Link>
-      <Link
-        href="/admin/login"
+      </button>
+      <button
+        type="button"
         role="menuitem"
         className={cn(
-          "flex w-full items-center gap-2 font-semibold text-brand hover:bg-brand-soft",
+          "flex w-full items-center gap-2 text-left font-semibold text-brand hover:bg-brand-soft",
           compact ? "rounded-xl px-4 py-3 text-base" : "px-3.5 py-2.5 text-sm",
         )}
-        onClick={() => {
-          setOpen(false);
-          onNavigate?.();
-        }}
+        onClick={openAdmin}
       >
         <Shield className="size-4 text-muted" aria-hidden />
         Admin login
-      </Link>
+      </button>
     </>
   );
 
@@ -169,10 +185,10 @@ export function SiteLoginMenu({
           <div className="h-12 rounded-xl bg-brand-soft/60" aria-hidden />
         ) : isAuthed ? (
           <>
-            <Link
-              href={session.href}
-              onClick={onNavigate}
-              className="flex items-center gap-3 rounded-xl bg-brand px-4 py-3 text-white"
+            <button
+              type="button"
+              onClick={openAuthedApp}
+              className="flex w-full items-center gap-3 rounded-xl bg-brand px-4 py-3 text-left text-white"
             >
               <span className="inline-flex size-9 items-center justify-center rounded-full bg-accent text-sm font-bold text-brand">
                 {emailInitial(session.email)}
@@ -183,7 +199,7 @@ export function SiteLoginMenu({
                   {session.email}
                 </span>
               </span>
-            </Link>
+            </button>
             <button
               type="button"
               onClick={() => void onLogout()}
@@ -267,17 +283,14 @@ export function SiteLoginMenu({
                   {session.email}
                 </p>
               </div>
-              <Link
-                href={session.href}
+              <button
+                type="button"
                 role="menuitem"
-                className="block px-3.5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-soft"
-                onClick={() => {
-                  setOpen(false);
-                  onNavigate?.();
-                }}
+                className="block w-full px-3.5 py-2.5 text-left text-sm font-semibold text-brand hover:bg-brand-soft"
+                onClick={openAuthedApp}
               >
                 {session.kind === "school" ? "Open portal" : "Open dashboard"}
-              </Link>
+              </button>
               <button
                 type="button"
                 role="menuitem"

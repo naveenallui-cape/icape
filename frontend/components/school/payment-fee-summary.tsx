@@ -37,48 +37,52 @@ export function PaymentFeeSummary({
   ];
 
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-xl border border-border bg-white",
-        className,
-      )}
-    >
-      <div className="border-b border-border bg-brand px-4 py-2.5">
-        <p className="text-sm font-bold text-white">Payment summary</p>
-        <p className="text-xs text-white/75">{PAYMENT_DETAILS.feeLabel}</p>
+    <div className={cn("space-y-3", className)}>
+      <div className="overflow-hidden rounded-xl border border-border bg-white">
+        <div className="border-b border-border bg-brand px-4 py-2.5">
+          <p className="text-sm font-bold text-white">Payment summary</p>
+          <p className="text-xs text-white/75">{PAYMENT_DETAILS.feeLabel}</p>
+        </div>
+        <dl>
+          {rows.map((row, index) => (
+            <div
+              key={row.label}
+              className={cn(
+                "flex items-center justify-between gap-3 px-4 py-2 text-sm",
+                index < rows.length - 1 ? "border-b border-border/70" : "",
+                row.emphasize ? "bg-brand-soft/50" : "",
+              )}
+            >
+              <dt
+                className={cn(
+                  row.emphasize
+                    ? "font-semibold text-brand"
+                    : "text-muted",
+                )}
+              >
+                {row.label}
+              </dt>
+              <dd
+                className={cn(
+                  "tabular-nums",
+                  row.emphasize
+                    ? "text-base font-bold text-brand"
+                    : "font-semibold text-brand",
+                )}
+              >
+                {row.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </div>
-      <dl>
-        {rows.map((row, index) => (
-          <div
-            key={row.label}
-            className={cn(
-              "flex items-center justify-between gap-3 px-4 py-2 text-sm",
-              index < rows.length - 1 ? "border-b border-border/70" : "",
-              row.emphasize ? "bg-brand-soft/50" : "",
-            )}
-          >
-            <dt
-              className={cn(
-                row.emphasize
-                  ? "font-semibold text-brand"
-                  : "text-muted",
-              )}
-            >
-              {row.label}
-            </dt>
-            <dd
-              className={cn(
-                "tabular-nums",
-                row.emphasize
-                  ? "text-base font-bold text-brand"
-                  : "font-semibold text-brand",
-              )}
-            >
-              {row.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <p className="rounded-xl border border-accent/40 bg-accent-soft px-4 py-3 text-sm leading-relaxed text-brand">
+        Please complete payment of{" "}
+        <span className="font-bold">
+          ₹{summary.totalFee.toLocaleString("en-IN")}
+        </span>{" "}
+        through UPI or bank transfer, then submit the payment details below.
+      </p>
     </div>
   );
 }

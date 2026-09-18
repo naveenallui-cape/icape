@@ -82,7 +82,7 @@ export function namedCountByGrade(
 export function GradeSwitchButtons({
   activeGrade,
   onChange,
-  counts,
+  counts: _counts,
   disabled,
 }: {
   activeGrade: number;
@@ -92,12 +92,11 @@ export function GradeSwitchButtons({
 }) {
   return (
     <div
-      className="flex flex-wrap items-center gap-1.5"
+      className="grid grid-cols-4 gap-2 sm:grid-cols-8"
       role="tablist"
       aria-label="Select grade"
     >
       {STUDENT_GRADES.map((grade) => {
-        const count = counts?.[grade] || 0;
         const active = activeGrade === grade;
         return (
           <button
@@ -108,19 +107,24 @@ export function GradeSwitchButtons({
             disabled={disabled}
             onClick={() => onChange(grade)}
             className={cn(
-              "rounded-md px-2.5 py-1.5 text-xs font-semibold sm:text-sm",
+              "flex flex-col items-center justify-center rounded-xl border px-2 py-2.5 text-center transition",
               active
-                ? "bg-brand text-white"
-                : "border border-border bg-white text-brand hover:bg-brand-soft",
+                ? "border-brand bg-brand text-white shadow-sm"
+                : "border-border bg-white text-brand hover:bg-brand-soft/60",
               disabled && "cursor-default opacity-70",
             )}
           >
-            Grade {grade}
-            {count > 0 ? (
-              <span className={cn("ml-1", active ? "text-white/80" : "text-muted")}>
-                ({count})
-              </span>
-            ) : null}
+            <span
+              className={cn(
+                "text-[10px] font-semibold uppercase tracking-wide",
+                active ? "text-white/75" : "text-muted",
+              )}
+            >
+              Grade
+            </span>
+            <span className="text-lg font-bold leading-none sm:text-xl">
+              {grade}
+            </span>
           </button>
         );
       })}

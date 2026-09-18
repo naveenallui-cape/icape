@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { PAYMENT_DETAILS, PAYMENT_METHODS, paymentReferenceField, type PaymentMethod } from "@/lib/payment-details";
 import { PaymentFeeSummary } from "@/components/school/payment-fee-summary";
 import { SchoolApprovedStudents } from "@/components/school/school-approved-students";
-import { WhatsAppContactActions } from "@/components/school/whatsapp-contact-actions";
+import { SchoolResultsPanel } from "@/components/school/school-results-panel";
 import {
   ensureStudentsForGrade,
   gradeStudentIndices,
@@ -21,6 +21,8 @@ import {
   namedCountByGrade,
   type StudentGrade,
 } from "@/components/school/grade-switch-buttons";
+import { GradeTableFrame } from "@/components/school/grade-table-frame";
+import { SchoolDashboard } from "@/components/school/school-dashboard";
 import {
   fetchMyRegistration,
   importStudentsExcel,
@@ -36,10 +38,9 @@ import {
 import { cn } from "@/lib/utils";
 import { toTitleCaseInput } from "@/lib/title-case";
 import { LIVE_DATA_REFETCH_MS } from "@/lib/live-refresh";
+import { MOBILE_DIGITS_REGEX, MOBILE_ERROR } from "@/lib/mobile";
 
 const INITIAL_STUDENT_ROWS = 30;
-
-const phoneRegex = /^[0-9+\-\s]{10,15}$/;
 
 const schoolSchema = z
   .object({
@@ -56,21 +57,15 @@ const schoolSchema = z
     affiliation: z.enum(["CBSE", "ICSE", "STATE_BOARD", "OTHER"]),
     affiliationOther: z.string().trim().max(80),
     trustName: z.string().trim().min(2, "Trust / Society name is required"),
-    schoolMobile: z
-      .string()
-      .trim()
-      .regex(phoneRegex, "Enter a valid school mobile"),
+    schoolMobile: z.string().trim().regex(MOBILE_DIGITS_REGEX, MOBILE_ERROR),
     landline: z.string().trim().max(20),
     stdCode: z.string().trim().max(10),
     email: z.string().trim().email("Enter a valid school email"),
     principalName: z.string().trim().min(2, "Principal name is required"),
-    principalMobile: z
-      .string()
-      .trim()
-      .regex(phoneRegex, "Enter a valid principal mobile"),
+    principalMobile: z.string().trim().regex(MOBILE_DIGITS_REGEX, MOBILE_ERROR),
     principalEmail: z.string().trim().email("Enter a valid principal email"),
     contactName: z.string().trim().min(2, "Incharge name is required"),
-    phone: z.string().trim().regex(phoneRegex, "Enter a valid incharge mobile"),
+    phone: z.string().trim().regex(MOBILE_DIGITS_REGEX, MOBILE_ERROR),
     inchargeEmail: z.string().trim().email("Enter a valid incharge email"),
   })
   .superRefine((data, ctx) => {
@@ -227,6 +222,8 @@ function isSchoolDetailsComplete(
     | "contactName"
     | "phone"
     | "inchargeEmail"
+    | "affiliation"
+    | "country"
   > | null | undefined,
 ) {
   if (!data) return false;
@@ -245,8 +242,25 @@ function isSchoolDetailsComplete(
       data.principalEmail?.trim() &&
       data.contactName?.trim() &&
       data.phone?.trim() &&
-      data.inchargeEmail?.trim(),
+      data.inchargeEmail?.trim() &&
+      data.affiliation?.trim() &&
+      data.country?.trim(),
   );
+}
+
+/** Progress unlocked by saved registration data — never by visiting a step. */
+function resolveSavedThrough(data: SchoolRegistration | null | undefined) {
+  if (!data) return 0;
+  if (
+    data.status === "UNDER_REVIEW" ||
+    data.status === "APPROVED" ||
+    data.status === "REJECTED"
+  ) {
+    return 3;
+  }
+  if (!isSchoolDetailsComplete(data)) return 1;
+  if (!studentsReadyForSubmit(data.students || []).ok) return 2;
+  return Math.min(3, Math.max(2, data.currentStep || 2));
 }
 
 function studentsReadyForSubmit(
@@ -302,24 +316,38 @@ function resolvePortalStep(data: SchoolRegistration): number {
   ) {
     return 3;
   }
+  const schoolOk = isSchoolDetailsComplete(data);
+  if (!schoolOk) return 1;
+
+  const studentsOk = studentsReadyForSubmit(data.students || []).ok;
   const maxAllowed = Math.min(3, Math.max(1, data.currentStep || 1));
   const stored = readStoredPortalStep(data.id);
+  // Never open Payment without at least one student + olympiad
+  if (stored === 3 && !studentsOk) {
+    return Math.min(2, maxAllowed);
+  }
   // Honor the step the user was actually on (Students / Payment / School).
   if (stored && stored >= 1 && stored <= maxAllowed) {
+    if (stored >= 2 && !schoolOk) return 1;
+    if (stored === 3 && !studentsOk) return 2;
     return stored;
   }
   // DRAFT + unpaid: never auto-land on Payment after refresh — stay on Students.
   if (data.status === "DRAFT" && maxAllowed >= 2 && !data.payment?.utr) {
     return 2;
   }
+  if (maxAllowed >= 3 && !studentsOk) return 2;
   return maxAllowed;
 }
 
-export default function SchoolPortalPage() {
+function SchoolPortalPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab") || "dashboard";
   const [loading, setLoading] = useState(true);
   const [reg, setReg] = useState<SchoolRegistration | null>(null);
   const [step, setStep] = useState(1);
+  const [resubmitAfterReject, setResubmitAfterReject] = useState(false);
   const [students, setStudents] = useState<StudentDraft[]>([]);
   const [activeGrade, setActiveGrade] = useState<StudentGrade>(3);
   const [error, setError] = useState("");
@@ -358,11 +386,87 @@ export default function SchoolPortalPage() {
     writeStoredPortalStep(reg.id, step);
   }, [reg?.id, step]);
 
-  function goToStep(next: number) {
+  function goToStep(
+    next: number,
+    opts?: { regOverride?: SchoolRegistration | null },
+  ) {
+    const current = opts?.regOverride ?? reg;
+    const terminal =
+      current?.status === "UNDER_REVIEW" || current?.status === "APPROVED";
+    if (next >= 2 && !terminal && !isSchoolDetailsComplete(current)) {
+      setError("Fill and save all required school details before students.");
+      stepReadyRef.current = true;
+      setStep(1);
+      if (current?.id) writeStoredPortalStep(current.id, 1);
+      if (tab !== "registration") {
+        router.replace(`/school/portal?tab=registration`, { scroll: false });
+      }
+      return;
+    }
+    if (next === 3) {
+      const studentsOk = studentsReadyForSubmit(students).ok;
+      if (!terminal && !studentsOk) {
+        setError(
+          "Add at least one student with at least one olympiad before payment.",
+        );
+        stepReadyRef.current = true;
+        setStep(2);
+        if (current?.id) writeStoredPortalStep(current.id, 2);
+        if (tab !== "registration") {
+          router.replace(`/school/portal?tab=registration`, { scroll: false });
+        }
+        return;
+      }
+    }
+    setError("");
     stepReadyRef.current = true;
     setStep(next);
-    if (reg?.id) writeStoredPortalStep(reg.id, next);
+    if (current?.id) writeStoredPortalStep(current.id, next);
+    if (tab !== "registration") {
+      router.replace(`/school/portal?tab=registration`, { scroll: false });
+    }
   }
+
+  // Legacy sidebar tabs → single Registration flow
+  useEffect(() => {
+    if (tab === "school" || tab === "students" || tab === "payment") {
+      const nextStep = tab === "school" ? 1 : tab === "students" ? 2 : 3;
+      goToStep(nextStep);
+      router.replace("/school/portal?tab=registration", { scroll: false });
+    }
+    if (tab === "help") {
+      router.replace("/school/portal?tab=dashboard", { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, router]);
+
+  // If somehow on Students/Payment without school details, send back
+  useEffect(() => {
+    if (loading) return;
+    if (step < 2) return;
+    if (reg?.status === "UNDER_REVIEW" || reg?.status === "APPROVED") return;
+    if (reg?.locked) return;
+    if (!isSchoolDetailsComplete(reg)) {
+      setError("Fill and save all required school details before students.");
+      setStep(1);
+      if (reg?.id) writeStoredPortalStep(reg.id, 1);
+    }
+  }, [loading, step, reg, reg?.locked, reg?.id, reg?.status]);
+
+  // If somehow on Payment without valid students, send back to Students
+  useEffect(() => {
+    if (loading) return;
+    if (step !== 3) return;
+    if (reg?.status === "UNDER_REVIEW" || reg?.status === "APPROVED") return;
+    if (reg?.locked) return;
+    if (!studentsReadyForSubmit(students).ok) {
+      setError(
+        "Add at least one student with at least one olympiad before payment.",
+      );
+      setStep(2);
+      if (reg?.id) writeStoredPortalStep(reg.id, 2);
+    }
+  }, [loading, step, students, reg?.status, reg?.id, reg?.locked]);
 
   const schoolForm = useForm<SchoolFormValues>({
     resolver: zodResolver(schoolSchema),
@@ -489,6 +593,9 @@ export default function SchoolPortalPage() {
   ) {
     skipNextDraftRef.current = true;
     setReg(data);
+    if (data.status !== "REJECTED") {
+      setResubmitAfterReject(false);
+    }
     schoolForm.reset({
       schoolCode: data.schoolCode || "",
       schoolName: data.schoolName || "",
@@ -529,13 +636,17 @@ export default function SchoolPortalPage() {
         : [],
     );
 
+    const submittedPayment =
+      data.status === "UNDER_REVIEW" || data.status === "APPROVED";
     const clearPayment =
+      !submittedPayment ||
       data.status === "REJECTED" ||
       Boolean(data.rejectionNote) ||
       !data.payment ||
       data.payment.status === "REJECTED";
 
     if (clearPayment) {
+      // Draft / rejected: never prefills old UTR — school must enter fresh
       setUtr("");
       setPaymentMethod("");
       setProofUrl("");
@@ -689,7 +800,7 @@ export default function SchoolPortalPage() {
       return;
     }
     applyRegistration(res.data, { syncStep: false });
-    goToStep(2);
+    goToStep(2, { regOverride: res.data });
   }
 
   async function onSaveStep2() {
@@ -962,7 +1073,7 @@ export default function SchoolPortalPage() {
     }
   }
 
-  const savedThrough = reg?.currentStep ?? 1;
+  const savedThrough = resolveSavedThrough(reg);
   const submitted =
     reg?.status === "UNDER_REVIEW" || reg?.status === "APPROVED";
 
@@ -971,7 +1082,7 @@ export default function SchoolPortalPage() {
   ): "completed" | "current" | "incomplete" | "pending" {
     if (submitted) return "completed";
     if (stepId === step) return "current";
-    if (stepId < savedThrough) return "completed";
+    if (stepId <= savedThrough && stepId < step) return "completed";
     if (stepId < step) return "incomplete";
     return "pending";
   }
@@ -993,115 +1104,307 @@ export default function SchoolPortalPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl font-bold text-brand sm:text-3xl">
-            Registration portal
-          </h1>
+      <div className="space-y-6">
+        <div className="h-10 w-64 animate-pulse rounded-lg bg-white/80" />
+        <div className="h-28 animate-pulse rounded-2xl border border-border bg-white" />
+        <div className="h-72 animate-pulse rounded-2xl border border-border bg-white" />
+      </div>
+    );
+  }
+
+  const namedStudents = students.filter((s) => s.name.trim()).length;
+  const schoolDone = isSchoolDetailsComplete(reg);
+  const studentsCheck = studentsReadyForSubmit(students);
+  const paymentDone = Boolean(reg?.payment?.utr && (reg.payment.proofUrl || proofUrl));
+
+  const schoolIdentity =
+    reg?.schoolName || reg?.schoolCode ? (
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 sm:justify-end sm:text-right">
+        {reg.schoolName ? (
+          <p className="text-lg leading-tight text-muted sm:text-xl">
+            School name:{" "}
+            <span className="font-bold text-brand">{reg.schoolName}</span>
+          </p>
+        ) : null}
+        {reg.schoolCode ? (
+          <p className="text-lg leading-tight text-muted sm:text-xl">
+            School code:{" "}
+            <span className="font-mono font-bold tracking-wider text-brand">
+              {reg.schoolCode}
+            </span>
+          </p>
+        ) : null}
+      </div>
+    ) : null;
+
+  function openTab(next: string) {
+    router.replace(`/school/portal?tab=${next}`, { scroll: false });
+  }
+
+  const moduleTabs: Record<
+    string,
+    { title: string; description: string }
+  > = {
+    certificates: {
+      title: "Certificates",
+      description:
+        "Download student certificates when they become available for this Olympiad Year.",
+    },
+    reports: {
+      title: "Student reports",
+      description:
+        "Access student performance reports for your registered participants.",
+    },
+    rankings: {
+      title: "Rankings",
+      description:
+        "See school and student rankings after results are published.",
+    },
+  };
+
+  if (tab === "results") {
+    return <SchoolResultsPanel />;
+  }
+
+  if (tab in moduleTabs) {
+    const mod = moduleTabs[tab];
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-brand">{mod.title}</h1>
+          <p className="mt-1 text-sm text-muted">{mod.description}</p>
         </div>
-        <div className="h-24 animate-pulse rounded-2xl border border-border bg-surface" />
-        <div className="h-64 animate-pulse rounded-2xl border border-border bg-surface" />
+        <div className="rounded-2xl border border-border bg-white p-8 shadow-sm">
+          <p className="text-sm font-semibold text-brand">Coming soon</p>
+          <p className="mt-2 text-sm text-muted">
+            This section will be available after results are published for the
+            current Olympiad Year.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (tab === "dashboard") {
+    return (
+      <SchoolDashboard
+        reg={reg}
+        students={students}
+        schoolDone={schoolDone}
+        studentsReady={studentsCheck.ok}
+        paymentDone={paymentDone}
+        onOpenTab={openTab}
+        onGoToStep={goToStep}
+        onResubmit={() => {
+          setResubmitAfterReject(true);
+          goToStep(3);
+          openTab("registration");
+        }}
+      />
+    );
+  }
+
+  if (tab === "list") {
+    // Only approved accounts use this page
+    if (reg?.status !== "APPROVED") {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-brand">Registration</h1>
+            <p className="mt-1 text-sm text-muted">
+              Complete and submit registration. Registered students appear here
+              after admin approval.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-white px-5 py-8 text-sm text-muted shadow-sm">
+            This school account has no approved registration yet. Use{" "}
+            <button
+              type="button"
+              className="font-semibold text-brand underline"
+              onClick={() => openTab("registration")}
+            >
+              Registration
+            </button>{" "}
+            to continue.
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-brand">Registered students</h1>
+            <p className="mt-1 text-sm text-muted">
+              Approved students for your school.
+            </p>
+          </div>
+          {schoolIdentity}
+        </div>
+        <SchoolApprovedStudents />
+      </div>
+    );
+  }
+
+  // Approved: Registration tab is not used — show students instead
+  if (tab === "registration" && reg?.status === "APPROVED") {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-brand">Registered students</h1>
+            <p className="mt-1 text-sm text-muted">
+              Approved students for your school.
+            </p>
+          </div>
+          {schoolIdentity}
+        </div>
+        <SchoolApprovedStudents />
+      </div>
+    );
+  }
+
+  // Registration wizard (draft / under review / rejected / no registration yet)
+  const registrationHeader = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h1 className="text-2xl font-bold text-brand">Registration</h1>
+        <p className="mt-1 text-sm text-muted">
+          {reg?.status === "UNDER_REVIEW"
+            ? "Your registration is pending verification."
+            : reg?.status === "REJECTED" && !resubmitAfterReject
+              ? "Registration rejected by i-CAPE. You can submit again."
+              : "Complete school details, students, and payment."}
+        </p>
+      </div>
+      {schoolIdentity}
+    </div>
+  );
+
+  if (reg?.status === "UNDER_REVIEW") {
+    return (
+      <div className="space-y-6">
+        {registrationHeader}
+        <div
+          id="registration-under-verification"
+          className="scroll-mt-6 rounded-2xl border border-accent/40 bg-accent-soft px-5 py-8 sm:px-8"
+        >
+          <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+            <div className="inline-flex size-14 shrink-0 items-center justify-center rounded-full bg-brand text-white">
+              <Clock className="size-7" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <h2 className="text-xl font-bold text-brand sm:text-2xl">
+                Registration pending
+              </h2>
+              <p className="text-sm leading-relaxed text-brand/80 sm:text-base">
+                Your registration has been submitted and is waiting for admin
+                verification. This usually takes up to{" "}
+                <span className="font-semibold text-brand">24 hours</span>. You
+                will get an email when it is approved or if any action is needed.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (reg?.status === "REJECTED" && !resubmitAfterReject) {
+    return (
+      <div className="space-y-6">
+        {registrationHeader}
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-8 sm:px-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+            <div className="inline-flex size-14 shrink-0 items-center justify-center rounded-full bg-red-600 text-white">
+              <X className="size-7" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1 space-y-4">
+              <div>
+                <h2 className="text-xl font-bold text-red-900 sm:text-2xl">
+                  Registration rejected by i-CAPE
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-red-800 sm:text-base">
+                  You can submit again after updating your payment details.
+                </p>
+              </div>
+              <div className="rounded-xl border border-red-200 bg-white px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                  Reason
+                </p>
+                <p className="mt-1 text-sm font-medium text-red-950 sm:text-base">
+                  {reg.rejectionNote?.trim() ||
+                    "No reason was provided. Contact support if you need help."}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="accent"
+                onClick={() => {
+                  setResubmitAfterReject(true);
+                  goToStep(3);
+                }}
+              >
+                Submit again for verification
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-brand sm:text-3xl">
-          {reg?.status === "APPROVED" ? "School Portal" : "Registration portal"}
-        </h1>
-        {(reg?.schoolName || reg?.schoolCode) ? (
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-1 text-[1.225rem] leading-snug text-muted sm:justify-end">
-            {reg.schoolName ? (
-              <p>
-                School Name:{" "}
-                <span className="font-semibold text-brand">
-                  {reg.schoolName}
-                </span>
-              </p>
-            ) : null}
-            {reg.schoolCode ? (
-              <p>
-                School Code:{" "}
-                <span className="font-mono text-[1.225rem] font-bold tracking-wider text-brand">
-                  {reg.schoolCode}
-                </span>
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+    <div className="space-y-6">
+      {registrationHeader}
 
-      {reg?.status === "UNDER_REVIEW" ? (
-        <div
-          id="registration-under-verification"
-          className="scroll-mt-6 rounded-2xl border border-accent/40 bg-accent-soft px-5 py-6 sm:px-7 sm:py-7"
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-            <div className="inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-brand text-white">
-              <Clock className="size-6" aria-hidden />
-            </div>
-            <div className="min-w-0 flex-1 space-y-3">
-              <div>
-                <h2 className="text-xl font-bold text-brand sm:text-2xl">
-                  Registration submitted — under verification
-                </h2>
-                <p className="mt-2 text-sm leading-relaxed text-brand/80 sm:text-base">
-                  Your school registration and payment details have been
-                  received. Verification usually takes up to{" "}
-                  <span className="font-semibold text-brand">24 hours</span>.
-                  You will be able to download student lists after admin
-                  approval.
-                </p>
-              </div>
-              <div className="rounded-xl border border-brand/15 bg-white/80 px-4 py-3">
-                <p className="text-sm font-semibold text-brand">
-                  Need help? Contact us on WhatsApp
-                </p>
-                <div className="mt-2">
-                  <WhatsAppContactActions />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-      {reg?.status === "APPROVED" ? (
-        <div className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900">
-          Registration approved. You can view, download, and print your student
-          list below.
-        </div>
-      ) : null}
       {reg?.status === "REJECTED" ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <p className="font-semibold">Registration rejected by admin</p>
-          <p className="mt-1">You can submit again after correcting the details.</p>
-          {reg.rejectionNote ? (
-            <p className="mt-1">{reg.rejectionNote}</p>
-          ) : null}
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-800">
+          <p className="font-semibold text-base text-red-900">
+            Registration rejected by i-CAPE. You can submit again.
+          </p>
+          <div className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+              Reason
+            </p>
+            <p className="mt-1 font-medium text-red-950">
+              {reg.rejectionNote?.trim() ||
+                "No reason was provided. Contact support if you need help."}
+            </p>
+          </div>
         </div>
       ) : null}
 
-      {reg?.status === "APPROVED" ? (
-        <SchoolApprovedStudents />
-      ) : (
-        <>
       <nav
         aria-label="Registration steps"
-        className="w-full overflow-x-auto rounded-2xl border border-border bg-surface px-3 py-4 sm:px-6"
+        className="w-full overflow-x-auto rounded-2xl border border-border bg-white px-3 py-4 shadow-sm sm:px-6"
       >
         <ol className="flex min-w-[640px] items-center justify-between gap-1 sm:min-w-0">
           {STEPS.map((item, index) => {
             const state = getStepState(item.id);
             const underReview = reg?.status === "UNDER_REVIEW";
-            const canJump =
+            const studentsOk = studentsReadyForSubmit(students).ok;
+            const schoolOk =
+              underReview ||
+              reg?.status === "APPROVED" ||
+              isSchoolDetailsComplete(reg);
+            const canOpenPayment =
+              underReview ||
+              reg?.status === "APPROVED" ||
+              studentsOk;
+            // Only unlock from saved progress — never from currentStep alone.
+            const canJumpBase =
               underReview ||
               (!locked &&
-                (state === "completed" ||
-                  state === "incomplete" ||
-                  item.id === step ||
-                  item.id <= savedThrough));
+                (item.id === step ||
+                  item.id <= savedThrough ||
+                  (item.id === 1 && savedThrough >= 1)));
+            const canJump =
+              item.id === 1
+                ? canJumpBase || !locked
+                : item.id === 2
+                  ? canJumpBase && schoolOk
+                  : canJumpBase && schoolOk && canOpenPayment;
             return (
               <li key={item.id} className="flex min-w-0 flex-1 items-center">
                 <button
@@ -1112,7 +1415,9 @@ export default function SchoolPortalPage() {
                   }}
                   className={cn(
                     "flex w-full min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:gap-3 sm:text-left",
-                    canJump ? "cursor-pointer" : "cursor-default",
+                    canJump
+                      ? "cursor-pointer"
+                      : "cursor-not-allowed opacity-55",
                   )}
                 >
                   <span
@@ -1193,7 +1498,7 @@ export default function SchoolPortalPage() {
 
       {step === 1 ? (
         <form
-          className="space-y-6 rounded-2xl border border-border bg-surface p-5 sm:p-6"
+          className="space-y-6 rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6"
           onSubmit={schoolForm.handleSubmit(onSaveStep1, () => {
             setError("Fill all required fields highlighted in red");
           })}
@@ -1392,6 +1697,10 @@ export default function SchoolPortalPage() {
               <Field label="School mobile no. *" error={fieldErr("schoolMobile")}>
                 <Input
                   disabled={locked}
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile"
                   aria-invalid={Boolean(fieldErr("schoolMobile"))}
                   className={fieldBorder(Boolean(fieldErr("schoolMobile")))}
                   {...schoolForm.register("schoolMobile")}
@@ -1440,6 +1749,10 @@ export default function SchoolPortalPage() {
               <Field label="Mobile no. *" error={fieldErr("principalMobile")}>
                 <Input
                   disabled={locked}
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile"
                   aria-invalid={Boolean(fieldErr("principalMobile"))}
                   className={fieldBorder(Boolean(fieldErr("principalMobile")))}
                   {...schoolForm.register("principalMobile")}
@@ -1474,6 +1787,10 @@ export default function SchoolPortalPage() {
               <Field label="Mobile no. *" error={fieldErr("phone")}>
                 <Input
                   disabled={locked}
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile"
                   aria-invalid={Boolean(fieldErr("phone"))}
                   className={fieldBorder(Boolean(fieldErr("phone")))}
                   {...schoolForm.register("phone")}
@@ -1559,7 +1876,7 @@ export default function SchoolPortalPage() {
             </div>
           )}
 
-          <div className="overflow-x-auto rounded-xl border border-border">
+          <GradeTableFrame grade={activeGrade}>
             <table className="w-full min-w-[920px] border-collapse text-sm">
               <thead className="bg-brand-stats text-white">
                 <tr>
@@ -1659,12 +1976,15 @@ export default function SchoolPortalPage() {
                     <td className="px-2 py-2 align-middle">
                       <Input
                         disabled={locked}
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
                         value={student.mobile}
-                        placeholder="WhatsApp / Mobile"
+                        placeholder="10-digit mobile"
                         className="h-9 w-full"
                         onChange={(e) =>
                           updateStudentRow(absoluteIndex, {
-                            mobile: e.target.value,
+                            mobile: e.target.value.replace(/\D/g, "").slice(0, 10),
                           })
                         }
                       />
@@ -1741,7 +2061,7 @@ export default function SchoolPortalPage() {
                 })}
               </tbody>
             </table>
-          </div>
+          </GradeTableFrame>
 
           {!locked ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -1818,7 +2138,7 @@ export default function SchoolPortalPage() {
               <Button type="button" variant="outline" onClick={() => goToStep(1)}>
                 Back
               </Button>
-              <Button type="button" onClick={onSaveStep2} disabled={saving}>
+              <Button type="button" onClick={() => void onSaveStep2()} disabled={saving}>
                 {saving ? "Saving…" : "Next"}
               </Button>
             </div>
@@ -1920,7 +2240,10 @@ export default function SchoolPortalPage() {
                 disabled={locked}
                 value={utr}
                 autoComplete="off"
-                name="payment-reference"
+                autoCorrect="off"
+                spellCheck={false}
+                name="icape-payment-reference"
+                inputMode="text"
                 aria-invalid={Boolean(paymentErrors.utr)}
                 className={fieldBorder(Boolean(paymentErrors.utr))}
                 onChange={(e) => {
@@ -1994,8 +2317,7 @@ export default function SchoolPortalPage() {
           ) : null}
         </div>
       ) : null}
-        </>
-      )}
+
       {showSubmitSuccess ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-brand/45 p-4"
@@ -2041,5 +2363,21 @@ export default function SchoolPortalPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function SchoolPortalPageRoute() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <div className="h-10 w-64 animate-pulse rounded-lg bg-white/80" />
+          <div className="h-28 animate-pulse rounded-2xl border border-border bg-white" />
+          <div className="h-72 animate-pulse rounded-2xl border border-border bg-white" />
+        </div>
+      }
+    >
+      <SchoolPortalPage />
+    </Suspense>
   );
 }

@@ -54,7 +54,11 @@ export type SchoolResultsPayload = {
     state: string | null;
   };
   olympiadYear: { label: string; code: string };
-  filters: { olympiad: OlympiadCode | null; grade: number | null };
+  filters: {
+    olympiad: OlympiadCode | null;
+    grade: number | null;
+    student?: string | null;
+  };
   pagination: {
     page: number;
     limit: number;

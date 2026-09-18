@@ -1,5 +1,5 @@
-import { AdminPlaceholderPage } from "@/components/admin/admin-placeholder";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <AdminPlaceholderPage title="Ratings" />;
+  redirect("/admin/rankings");
 }

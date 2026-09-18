@@ -15,6 +15,7 @@ import {
   Menu,
   School,
   Settings,
+  Trophy,
   Users,
   WalletCards,
   X,
@@ -33,19 +34,19 @@ const nav = [
   },
   {
     href: "/admin/incomplete-registrations",
-    label: "Incomplete registrations",
+    label: "Incomplete Regs",
     icon: ClipboardList,
   },
   {
     href: "/admin/registrations",
-    label: "Payment verification",
+    label: "Payment Review",
     icon: WalletCards,
   },
   { href: "/admin/students", label: "Students", icon: Users },
   { href: "/admin/results", label: "Results", icon: BarChart3 },
   { href: "/admin/results/upload", label: "Upload Results", icon: FileUp },
   { href: "/admin/results/update", label: "Update Results", icon: FilePenLine },
-  { href: "/admin/ratings", label: "Ratings", icon: Award },
+  { href: "/admin/rankings", label: "Rankings", icon: Trophy },
   { href: "/admin/certificates", label: "Certificates", icon: Award },
   { href: "/admin/reports", label: "Student Reports", icon: BarChart3 },
   { href: "/admin/settings", label: "Settings", icon: Settings },
@@ -117,6 +118,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const [adminName, setAdminName] = useState(
     () => warmAdminSession?.name ?? "Admin",
   );
+  const [adminEmail, setAdminEmail] = useState("");
   const [verifying, setVerifying] = useState(false);
 
   useLayoutEffect(() => {
@@ -140,7 +142,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       if (!warmAdminSession && !readAdminCache()) {
         setVerifying(true);
       }
-      const res = await apiRequest<{ name: string }>("/auth/me");
+      const res = await apiRequest<{ name: string; email?: string }>("/auth/me");
       if (cancelled) return;
       setVerifying(false);
       if (!res.success) {
@@ -160,6 +162,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       const name = res.data?.name ?? "Admin";
       writeAdminCache(name);
       setAdminName(name);
+      setAdminEmail(res.data?.email || "");
       setReady(true);
     }
     void check();
@@ -233,15 +236,31 @@ export function AdminShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="shrink-0 border-t border-white/10 p-3">
+        <div className="shrink-0 space-y-2 border-t border-white/10 p-3">
+          <div className="flex items-center gap-2.5 rounded-lg px-1 py-1.5">
+            <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-bold text-brand">
+              {(adminEmail || adminName).trim().charAt(0).toUpperCase() || "A"}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-white">
+                {adminName}
+              </p>
+              <p
+                className="truncate text-[11px] text-white/65"
+                title={adminEmail || undefined}
+              >
+                {adminEmail || "Admin login"}
+              </p>
+            </div>
+          </div>
           <Button
             type="button"
             variant="ghost"
-            className="w-full justify-start text-white hover:bg-white/10 hover:text-white"
+            className="w-full justify-start bg-white/10 text-white hover:bg-white/20 hover:text-white"
             onClick={() => void logout()}
           >
             <LogOut className="size-4" />
-            Logout
+            Log out
           </Button>
         </div>
       </aside>

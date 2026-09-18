@@ -1,22 +1,6 @@
-import { Suspense } from "react";
-import type { Metadata } from "next";
-import { SchoolResultView } from "@/components/public/school-result-view";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "School Results | i-CAPE",
-  robots: { index: false, follow: false },
-};
-
+/** School-wide results moved to school portal login */
 export default function SchoolResultPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-          <div className="h-40 animate-pulse rounded-2xl bg-brand-soft/60" />
-        </div>
-      }
-    >
-      <SchoolResultView />
-    </Suspense>
-  );
+  redirect("/school/login");
 }

@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SchoolAuthShell } from "@/components/school/school-auth-shell";
-import { SchoolLoginForm } from "@/components/school/school-login-form";
+import { SchoolLoginPage } from "@/components/school/school-login-page";
 import { schoolAuthMe } from "@/lib/school-api";
 
-export default function SchoolLoginPage() {
+export default function SchoolLoginRoute() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
@@ -16,7 +15,7 @@ export default function SchoolLoginPage() {
       const res = await schoolAuthMe();
       if (cancelled) return;
       if (res.success && res.data?.email) {
-        router.replace("/school/portal");
+        router.replace("/school/portal?tab=dashboard");
         return;
       }
       setReady(true);
@@ -28,18 +27,11 @@ export default function SchoolLoginPage() {
 
   if (!ready) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted">
+      <div className="flex min-h-screen items-center justify-center bg-[#0b1228] text-sm text-white/70">
         Loading…
       </div>
     );
   }
 
-  return (
-    <SchoolAuthShell
-      title="School login"
-      description="Please enter your registered Email ID and Password"
-    >
-      <SchoolLoginForm />
-    </SchoolAuthShell>
-  );
+  return <SchoolLoginPage />;
 }

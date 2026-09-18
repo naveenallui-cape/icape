@@ -63,9 +63,7 @@ export default function SchoolForgotPasswordPage() {
     }
     setEmail(values.email.trim().toLowerCase());
     setStep("otp");
-    setMessage(
-      "If an account exists for that email, a 4-digit OTP has been sent.",
-    );
+    setMessage(res.message || "A 4-digit OTP has been sent to your email.");
   }
 
   async function onReset(values: ResetFormValues) {
@@ -91,7 +89,7 @@ export default function SchoolForgotPasswordPage() {
       setError(res.message);
       return;
     }
-    setMessage("A new OTP has been sent if the account exists.");
+    setMessage(res.message || "A new OTP has been sent to your email.");
   }
 
   if (step === "otp") {
@@ -187,7 +185,7 @@ export default function SchoolForgotPasswordPage() {
   return (
     <SchoolAuthShell
       title="Forgot password"
-      description="Enter your school account email. We will send a 4-digit OTP if it exists."
+      description="Enter your registered school account email. We will send a 4-digit OTP."
       footer={
         <Link
           href="/school/login"

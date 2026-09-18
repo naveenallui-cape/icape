@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -18,16 +17,14 @@ import {
   buildWhatsAppAppUrl,
   isRegistrationOpen,
 } from "@/lib/registration-announcement";
+import { openNamedTab, TAB_NAMES } from "@/lib/open-named-tab";
+import { MOBILE_DIGITS_REGEX, MOBILE_ERROR } from "@/lib/mobile";
 import { cn } from "@/lib/utils";
 
 const leadSchema = z.object({
   schoolName: z.string().trim().min(2, "School name is required"),
   contactName: z.string().trim().min(2, "Contact name is required"),
-  mobile: z
-    .string()
-    .trim()
-    .min(10, "Enter a valid mobile number")
-    .regex(/^[0-9+\-\s]{10,15}$/, "Enter a valid mobile number"),
+  mobile: z.string().trim().regex(MOBILE_DIGITS_REGEX, MOBILE_ERROR),
   email: z.string().trim().email("Enter a valid email"),
   schoolAddress: z.string().trim().min(5, "School address is required"),
 });
@@ -55,7 +52,6 @@ function buildWhatsAppUrl(intent: LeadIntent, values: LeadFormValues) {
 }
 
 export function WelcomeOlympiadPopup() {
-  const router = useRouter();
   const titleId = useId();
   const descId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -136,7 +132,7 @@ export function WelcomeOlympiadPopup() {
 
   function goToSchoolLogin() {
     dismiss(true);
-    router.push("/school/login");
+    openNamedTab("/school/login", TAB_NAMES.school);
   }
 
   function onSubmit(values: LeadFormValues) {
@@ -306,6 +302,8 @@ export function WelcomeOlympiadPopup() {
                       </label>
                       <Input
                         type={"type" in field ? field.type : "text"}
+                        inputMode={field.name === "mobile" ? "numeric" : undefined}
+                        maxLength={field.name === "mobile" ? 10 : undefined}
                         placeholder={field.placeholder}
                         aria-invalid={Boolean(
                           form.formState.errors[field.name],

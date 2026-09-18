@@ -179,13 +179,17 @@ function AdminRegistrationsPageInner() {
 
   async function verify(action: "approve" | "reject") {
     if (!selectedId) return;
+    if (action === "reject" && note.trim().length < 3) {
+      setActionError("Rejection reason is required");
+      return;
+    }
     setBusy(true);
     setActionError("");
     const res = await apiRequest(
       `/admin/school-registrations/${selectedId}/verify`,
       {
         method: "POST",
-        body: { action, adminNote: note || undefined },
+        body: { action, adminNote: note.trim() || undefined },
       },
     );
     setBusy(false);
@@ -216,7 +220,7 @@ function AdminRegistrationsPageInner() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-brand">Payment verification</h1>
+        <h1 className="text-2xl font-bold text-brand">Payment Review</h1>
         <p className="mt-1 text-sm text-muted">
           Verify school registration payments.
         </p>
@@ -609,13 +613,17 @@ function VerificationDialog({
           <div className="shrink-0 space-y-3 border-t border-border px-5 py-4">
             <div>
               <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
-                Admin note
+                Rejection reason / admin note
               </label>
               <Input
-                placeholder="Optional for approve · recommended for reject"
+                placeholder="Required when rejecting · optional for approve"
                 value={note}
                 onChange={(e) => onNoteChange(e.target.value)}
               />
+              <p className="mt-1 text-xs text-muted">
+                A reason is required to reject. Schools will see it on their
+                portal.
+              </p>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               <Button
@@ -628,7 +636,7 @@ function VerificationDialog({
               <Button
                 type="button"
                 variant="danger"
-                disabled={busy || loading}
+                disabled={busy || loading || note.trim().length < 3}
                 onClick={() => onVerify("reject")}
               >
                 Reject

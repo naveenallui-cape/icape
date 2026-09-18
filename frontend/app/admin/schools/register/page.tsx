@@ -20,6 +20,7 @@ import { computeRegistrationFee, PAYMENT_METHODS, paymentReferenceField, type Pa
 import { toTitleCaseInput } from "@/lib/title-case";
 import { cn } from "@/lib/utils";
 import { PaymentFeeSummary } from "@/components/school/payment-fee-summary";
+import { GradeTableFrame } from "@/components/school/grade-table-frame";
 import {
   ensureStudentsForGrade,
   gradeStudentIndices,
@@ -28,9 +29,9 @@ import {
   namedCountByGrade,
   type StudentGrade,
 } from "@/components/school/grade-switch-buttons";
+import { MOBILE_DIGITS_REGEX, MOBILE_ERROR } from "@/lib/mobile";
 
 const INITIAL_STUDENT_ROWS = 30;
-const phoneRegex = /^[0-9+\-\s]{10,15}$/;
 
 const STEPS = [
   { id: 1, label: "Account" },
@@ -42,11 +43,7 @@ const STEPS = [
 const accountSchema = z.object({
   name: z.string().trim().min(2, "School name is required"),
   email: z.string().trim().email("Enter a valid email"),
-  mobile: z
-    .string()
-    .trim()
-    .min(10, "Enter a valid mobile number")
-    .regex(phoneRegex, "Enter a valid mobile number"),
+  mobile: z.string().trim().regex(MOBILE_DIGITS_REGEX, MOBILE_ERROR),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -64,21 +61,15 @@ const schoolSchema = z
     affiliation: z.enum(["CBSE", "ICSE", "STATE_BOARD", "OTHER"]),
     affiliationOther: z.string().trim().max(80),
     trustName: z.string().trim().min(2, "Trust / Society name is required"),
-    schoolMobile: z
-      .string()
-      .trim()
-      .regex(phoneRegex, "Enter a valid school mobile"),
+    schoolMobile: z.string().trim().regex(MOBILE_DIGITS_REGEX, MOBILE_ERROR),
     landline: z.string().trim().max(20),
     stdCode: z.string().trim().max(10),
     email: z.string().trim().email("Enter a valid school email"),
     principalName: z.string().trim().min(2, "Principal name is required"),
-    principalMobile: z
-      .string()
-      .trim()
-      .regex(phoneRegex, "Enter a valid principal mobile"),
+    principalMobile: z.string().trim().regex(MOBILE_DIGITS_REGEX, MOBILE_ERROR),
     principalEmail: z.string().trim().email("Enter a valid principal email"),
     contactName: z.string().trim().min(2, "Incharge name is required"),
-    phone: z.string().trim().regex(phoneRegex, "Enter a valid incharge mobile"),
+    phone: z.string().trim().regex(MOBILE_DIGITS_REGEX, MOBILE_ERROR),
     inchargeEmail: z.string().trim().email("Enter a valid incharge email"),
   })
   .superRefine((data, ctx) => {
@@ -195,6 +186,14 @@ function writeStoredAdminStep(accountId: string, step: number) {
   }
 }
 
+function studentsReadyForPayment(rows: StudentRow[]) {
+  const named = rows.filter((s) => s.name.trim());
+  if (named.length === 0) return false;
+  return named.every(
+    (s) => isStudentGrade(s.grade) && (s.imo || s.iso || s.ieo),
+  );
+}
+
 function resolveResumeStep(
   reg: RegistrationPayload,
   accountId?: string,
@@ -212,6 +211,7 @@ function resolveResumeStep(
     return 2;
   }
   const namedStudents = (reg.students || []).filter((s) => s.name?.trim());
+  const studentsOk = studentsReadyForPayment(reg.students || []);
   const stored = accountId ? readStoredAdminStep(accountId) : null;
   if (namedStudents.length === 0) {
     if (stored === 2 || stored === 3) return stored;
@@ -219,6 +219,7 @@ function resolveResumeStep(
   }
   // Honor the step the admin was on (Students vs Payment).
   if (stored === 2 || stored === 3 || stored === 4) {
+    if (stored === 4 && !studentsOk) return 3;
     if (stored === 4 && (reg.payment?.utr || (reg.currentStep ?? 0) >= 3)) {
       return 4;
     }
@@ -226,7 +227,10 @@ function resolveResumeStep(
   }
   // Unpaid draft with students: stay on Students — don't auto-open Payment.
   if (!reg.payment?.utr && !reg.payment?.status) return 3;
-  if ((reg.currentStep ?? 0) >= 3 || reg.payment?.utr || reg.payment?.status) {
+  if (
+    studentsOk &&
+    ((reg.currentStep ?? 0) >= 3 || reg.payment?.utr || reg.payment?.status)
+  ) {
     return 4;
   }
   return 3;
@@ -252,6 +256,8 @@ function isSchoolDetailsSaved(
       | "contactName"
       | "phone"
       | "inchargeEmail"
+      | "affiliation"
+      | "country"
     >
   >,
 ) {
@@ -270,7 +276,9 @@ function isSchoolDetailsSaved(
       reg.principalEmail?.trim() &&
       reg.contactName?.trim() &&
       reg.phone?.trim() &&
-      reg.inchargeEmail?.trim(),
+      reg.inchargeEmail?.trim() &&
+      reg.affiliation?.trim() &&
+      reg.country?.trim(),
   );
 }
 
@@ -282,10 +290,11 @@ function resolveCompletedThrough(
   if (!hasAccount) return 0;
   if (!reg) return 1;
   if (reg.status === "APPROVED" || reg.status === "UNDER_REVIEW") return 4;
+  // Students never unlock progress unless school details were saved first.
+  if (!isSchoolDetailsSaved(reg)) return 1;
   const named = (reg.students || []).filter((s) => s.name?.trim()).length;
   if (named > 0) return 3;
-  if (isSchoolDetailsSaved(reg)) return 2;
-  return 1;
+  return 2;
 }
 
 function Field({
@@ -372,6 +381,24 @@ function AdminRegisterSchoolPageInner() {
   }, [accountId, step]);
 
   function goToStep(next: number, forAccountId = accountId) {
+    // Must have saved school details (not just filled the form).
+    if (next >= 3 && completedThrough < 2) {
+      setError("Save school details before adding students.");
+      stepReadyRef.current = true;
+      setStep(2);
+      if (forAccountId) writeStoredAdminStep(forAccountId, 2);
+      return;
+    }
+    if (next === 4 && !studentsReadyForPayment(students)) {
+      setError(
+        "Add at least one student with at least one olympiad before payment.",
+      );
+      stepReadyRef.current = true;
+      setStep(3);
+      if (forAccountId) writeStoredAdminStep(forAccountId, 3);
+      return;
+    }
+    setError("");
     stepReadyRef.current = true;
     setStep(next);
     if (forAccountId) writeStoredAdminStep(forAccountId, next);
@@ -414,6 +441,25 @@ function AdminRegisterSchoolPageInner() {
     () => computeRegistrationFee(students.filter((s) => s.name.trim())),
     [students],
   );
+
+  useEffect(() => {
+    if (step < 3) return;
+    if (completedThrough >= 2) return;
+    setError("Save school details before adding students.");
+    setStep(2);
+    if (accountId) writeStoredAdminStep(accountId, 2);
+  }, [step, completedThrough, accountId]);
+
+  useEffect(() => {
+    if (step !== 4) return;
+    if (!studentsReadyForPayment(students)) {
+      setError(
+        "Add at least one student with at least one olympiad before payment.",
+      );
+      setStep(3);
+      if (accountId) writeStoredAdminStep(accountId, 3);
+    }
+  }, [step, students, accountId]);
 
   const watchedSchoolName = schoolForm.watch("schoolName");
   const displaySchoolName =
@@ -552,9 +598,19 @@ function AdminRegisterSchoolPageInner() {
         : [],
     );
 
-    if (reg.payment?.utr) setUtr(reg.payment.utr);
-    if (reg.payment?.paymentMethod) setPaymentMethod(reg.payment.paymentMethod);
-    if (reg.payment?.adminNote) setAdminNote(reg.payment.adminNote);
+    // Only show saved payment details after submit; draft stays blank
+    if (
+      reg.status === "UNDER_REVIEW" ||
+      reg.status === "APPROVED"
+    ) {
+      if (reg.payment?.utr) setUtr(reg.payment.utr);
+      if (reg.payment?.paymentMethod) setPaymentMethod(reg.payment.paymentMethod);
+      if (reg.payment?.adminNote) setAdminNote(reg.payment.adminNote);
+    } else {
+      setUtr("");
+      setPaymentMethod("");
+      setAdminNote("");
+    }
 
     stepReadyRef.current = true;
     const resumeStep = resolveResumeStep(reg, account.id);
@@ -683,7 +739,10 @@ function AdminRegisterSchoolPageInner() {
     }
     setSchoolCode(res.data.schoolCode || schoolCode);
     setCompletedThrough((prev) => Math.max(prev, 2));
-    goToStep(3);
+    setError("");
+    stepReadyRef.current = true;
+    setStep(3);
+    if (accountId) writeStoredAdminStep(accountId, 3);
   }
 
   async function onSaveStudents() {
@@ -762,23 +821,28 @@ function AdminRegisterSchoolPageInner() {
   async function onSubmitPayment() {
     setError("");
     const incomplete: string[] = [];
-    if (!isSchoolDetailsSaved({
-      schoolName: schoolForm.getValues("schoolName"),
-      address: schoolForm.getValues("address"),
-      city: schoolForm.getValues("city"),
-      district: schoolForm.getValues("district"),
-      state: schoolForm.getValues("state"),
-      pincode: schoolForm.getValues("pincode"),
-      trustName: schoolForm.getValues("trustName"),
-      schoolMobile: schoolForm.getValues("schoolMobile"),
-      email: schoolForm.getValues("email"),
-      principalName: schoolForm.getValues("principalName"),
-      principalMobile: schoolForm.getValues("principalMobile"),
-      principalEmail: schoolForm.getValues("principalEmail"),
-      contactName: schoolForm.getValues("contactName"),
-      phone: schoolForm.getValues("phone"),
-      inchargeEmail: schoolForm.getValues("inchargeEmail"),
-    })) {
+    if (
+      completedThrough < 2 ||
+      !isSchoolDetailsSaved({
+        schoolName: schoolForm.getValues("schoolName"),
+        address: schoolForm.getValues("address"),
+        city: schoolForm.getValues("city"),
+        district: schoolForm.getValues("district"),
+        state: schoolForm.getValues("state"),
+        pincode: schoolForm.getValues("pincode"),
+        trustName: schoolForm.getValues("trustName"),
+        schoolMobile: schoolForm.getValues("schoolMobile"),
+        email: schoolForm.getValues("email"),
+        principalName: schoolForm.getValues("principalName"),
+        principalMobile: schoolForm.getValues("principalMobile"),
+        principalEmail: schoolForm.getValues("principalEmail"),
+        contactName: schoolForm.getValues("contactName"),
+        phone: schoolForm.getValues("phone"),
+        inchargeEmail: schoolForm.getValues("inchargeEmail"),
+        affiliation: schoolForm.getValues("affiliation"),
+        country: schoolForm.getValues("country"),
+      })
+    ) {
       incomplete.push("School details");
     }
     const named = students.filter((s) => s.name.trim());
@@ -955,12 +1019,28 @@ function AdminRegisterSchoolPageInner() {
                   : item.id < step
                     ? "incomplete"
                     : "pending";
-            const canJump = Boolean(accountId) || item.id === 1;
+            const canJumpBase = Boolean(accountId) || item.id === 1;
+            const schoolOk = completedThrough >= 2;
+            const canJump =
+              item.id <= 2
+                ? canJumpBase
+                : item.id === 3
+                  ? canJumpBase && schoolOk
+                  : canJumpBase &&
+                    schoolOk &&
+                    studentsReadyForPayment(students);
             return (
               <li key={item.id} className="flex min-w-0 flex-1 items-center">
                 <button
                   type="button"
                   disabled={!canJump}
+                  title={
+                    !canJump && item.id === 3
+                      ? "Save school details first"
+                      : !canJump && item.id === 4
+                        ? "Add students with olympiads first"
+                        : undefined
+                  }
                   onClick={() => {
                     if (!canJump) return;
                     setError("");
@@ -968,7 +1048,9 @@ function AdminRegisterSchoolPageInner() {
                   }}
                   className={cn(
                     "flex w-full min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:gap-3 sm:text-left",
-                    canJump ? "cursor-pointer" : "cursor-default opacity-70",
+                    canJump
+                      ? "cursor-pointer"
+                      : "cursor-not-allowed opacity-55",
                   )}
                 >
                   <span
@@ -1116,8 +1198,9 @@ function AdminRegisterSchoolPageInner() {
                 >
                   <Input
                     type="tel"
-                    inputMode="tel"
+                    inputMode="numeric"
                     autoComplete="tel"
+                    maxLength={10}
                     placeholder="10-digit mobile number"
                     {...accountForm.register("mobile")}
                   />
@@ -1258,7 +1341,13 @@ function AdminRegisterSchoolPageInner() {
               label="School mobile *"
               error={schoolForm.formState.errors.schoolMobile?.message}
             >
-              <Input {...schoolForm.register("schoolMobile")} />
+              <Input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="10-digit mobile"
+                {...schoolForm.register("schoolMobile")}
+              />
             </Field>
             <Field label="STD code">
               <Input {...schoolForm.register("stdCode")} />
@@ -1291,7 +1380,13 @@ function AdminRegisterSchoolPageInner() {
                 label="Mobile no. *"
                 error={schoolForm.formState.errors.principalMobile?.message}
               >
-                <Input {...schoolForm.register("principalMobile")} />
+                <Input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile"
+                  {...schoolForm.register("principalMobile")}
+                />
               </Field>
               <Field
                 label="E-mail *"
@@ -1324,7 +1419,13 @@ function AdminRegisterSchoolPageInner() {
                 label="Mobile no. *"
                 error={schoolForm.formState.errors.phone?.message}
               >
-                <Input {...schoolForm.register("phone")} />
+                <Input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile"
+                  {...schoolForm.register("phone")}
+                />
               </Field>
               <Field
                 label="E-mail *"
@@ -1359,7 +1460,7 @@ function AdminRegisterSchoolPageInner() {
             />
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-border">
+          <GradeTableFrame grade={activeGrade}>
             <table className="w-full min-w-[920px] border-collapse text-sm">
               <thead className="bg-brand-stats text-white">
                 <tr>
@@ -1474,8 +1575,11 @@ function AdminRegisterSchoolPageInner() {
                       </td>
                       <td className="px-2 py-2 align-middle">
                         <Input
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
                           value={student.mobile}
-                          placeholder="WhatsApp / Mobile"
+                          placeholder="10-digit mobile"
                           className="h-9 w-full"
                           onChange={(e) =>
                             setStudents((prev) =>
@@ -1483,7 +1587,9 @@ function AdminRegisterSchoolPageInner() {
                                 i === absoluteIndex
                                   ? {
                                       ...row,
-                                      mobile: e.target.value,
+                                      mobile: e.target.value
+                                        .replace(/\D/g, "")
+                                        .slice(0, 10),
                                       grade: activeGrade,
                                     }
                                   : row,
@@ -1560,7 +1666,7 @@ function AdminRegisterSchoolPageInner() {
                 })}
               </tbody>
             </table>
-          </div>
+          </GradeTableFrame>
 
           <div className="flex flex-wrap items-center gap-2">
             <Button
