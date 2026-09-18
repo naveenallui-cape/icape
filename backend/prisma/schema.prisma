@@ -1,6 +1,5 @@
 // i-CAPE Prisma schema
-// Business models will be added in later phases.
-// Core concept: Olympiad Year (e.g. 2026-2027) — NOT academic year.
+// Core concept: Olympiad Year (e.g. 2025-2026) — NOT academic year.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,4 +8,392 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum OlympiadCode {
+  IMO
+  ISO
+  IEO
+}
+
+enum ResultStatus {
+  QUALIFIED
+  PASSED
+  PARTICIPATED
+  ABSENT
+}
+
+enum UploadStatus {
+  PROCESSING
+  COMPLETED
+  COMPLETED_WITH_ERRORS
+  FAILED
+}
+
+model Admin {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  uploads      ResultUpload[]
+  paymentReviews RegistrationPayment[] @relation("PaymentReviewedBy")
+  studentExportJobs StudentExportJob[]
+}
+
+model OlympiadYear {
+  id        String   @id @default(cuid())
+  /// Display label e.g. "2025-26"
+  label     String   @unique
+  /// Canonical e.g. "2025-2026"
+  code      String   @unique
+  isActive  Boolean  @default(false)
+  /// When true, public result lookup is allowed
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schools             School[]
+  students            Student[]
+  results             Result[]
+  uploads             ResultUpload[]
+  schoolRegistrations SchoolRegistration[]
+
+  @@index([published])
+  @@index([isActive])
+}
+
+model Olympiad {
+  id          String       @id @default(cuid())
+  code        OlympiadCode @unique
+  name        String
+  fullName    String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  results Result[]
+  uploads ResultUpload[]
+}
+
+model School {
+  id             String       @id @default(cuid())
+  /// Public school code / School ID used in forms (e.g. ICAPE-HYD-001)
+  schoolCode     String
+  name           String
+  city           String?
+  state          String?
+  olympiadYearId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  olympiadYear OlympiadYear @relation(fields: [olympiadYearId], references: [id], onDelete: Restrict)
+  students     Student[]
+  results      Result[]
+
+  @@unique([schoolCode, olympiadYearId])
+  @@index([olympiadYearId])
+  @@index([name])
+  @@index([schoolCode])
+  @@index([olympiadYearId, name])
+}
+
+model Student {
+  id                 String   @id @default(cuid())
+  registrationNumber String
+  name               String
+  grade              Int
+  schoolId           String
+  olympiadYearId     String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  olympiadYear OlympiadYear @relation(fields: [olympiadYearId], references: [id], onDelete: Restrict)
+  results      Result[]
+
+  @@unique([registrationNumber, olympiadYearId])
+  @@index([registrationNumber])
+  @@index([schoolId])
+  @@index([grade])
+  @@index([olympiadYearId])
+  @@index([olympiadYearId, grade])
+  @@index([schoolId, grade])
+}
+
+model Result {
+  id              String       @id @default(cuid())
+  studentId       String
+  schoolId        String
+  olympiadId      String
+  olympiadYearId  String
+  grade           Int
+  marksObtained   Decimal      @db.Decimal(8, 2)
+  totalMarks      Decimal      @db.Decimal(8, 2)
+  percentage      Decimal      @db.Decimal(6, 2)
+  rank            Int?
+  schoolRank      Int?
+  status          ResultStatus @default(PARTICIPATED)
+  certificateUrl  String?
+  certificateNo   String?
+  examDate        DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  olympiad     Olympiad     @relation(fields: [olympiadId], references: [id], onDelete: Restrict)
+  olympiadYear OlympiadYear @relation(fields: [olympiadYearId], references: [id], onDelete: Restrict)
+
+  /// One result per student + olympiad + year
+  @@unique([studentId, olympiadId, olympiadYearId])
+  @@index([studentId])
+  @@index([olympiadId])
+  @@index([olympiadYearId])
+  @@index([schoolId])
+  @@index([grade])
+  @@index([status])
+  @@index([studentId, olympiadYearId])
+  @@index([olympiadId, olympiadYearId, grade])
+  @@index([schoolId, olympiadId, grade, olympiadYearId])
+  @@index([schoolId, olympiadYearId, olympiadId])
+  @@index([olympiadYearId, schoolId, grade])
+}
+
+model ResultUpload {
+  id             String       @id @default(cuid())
+  fileName       String
+  olympiadId     String
+  olympiadYearId String
+  grade          Int?
+  totalRows      Int          @default(0)
+  validRows      Int          @default(0)
+  invalidRows    Int          @default(0)
+  duplicateRows  Int          @default(0)
+  importedRows   Int          @default(0)
+  status         UploadStatus @default(PROCESSING)
+  uploadedById   String
+  errorSummary   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  olympiad     Olympiad            @relation(fields: [olympiadId], references: [id], onDelete: Restrict)
+  olympiadYear OlympiadYear        @relation(fields: [olympiadYearId], references: [id], onDelete: Restrict)
+  uploadedBy   Admin               @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  errors       ResultUploadError[]
+
+  @@index([olympiadYearId])
+  @@index([olympiadId])
+  @@index([status])
+  @@index([uploadedById])
+  @@index([createdAt])
+}
+
+model ResultUploadError {
+  id       String @id @default(cuid())
+  uploadId String
+  rowNumber Int
+  message  String
+  rawData  String?
+
+  upload ResultUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@index([uploadId])
+}
+
+enum RegistrationStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum PaymentReviewStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PaymentMethod {
+  UPI
+  NEFT
+  RTGS
+  IMPS
+}
+
+/// School portal login identity (not year-scoped)
+model SchoolAccount {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  mobile       String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  registrations SchoolRegistration[]
+  resetTokens   PasswordResetToken[]
+
+  @@index([email])
+}
+
+model PasswordResetToken {
+  id              String    @id @default(cuid())
+  token           String    @unique
+  schoolAccountId String
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  schoolAccount SchoolAccount @relation(fields: [schoolAccountId], references: [id], onDelete: Cascade)
+
+  @@index([schoolAccountId])
+  @@index([expiresAt])
+}
+
+/// Online school registration for one Olympiad Year
+model SchoolRegistration {
+  id              String             @id @default(cuid())
+  schoolAccountId String
+  olympiadYearId  String
+  status          RegistrationStatus @default(DRAFT)
+  currentStep     Int                @default(1)
+  /// Matches School Registration Form fields
+  schoolCode      String             @default("")
+  schoolName      String             @default("")
+  address         String             @default("")
+  city            String             @default("")
+  district        String             @default("")
+  state           String             @default("")
+  pincode         String             @default("")
+  country         String             @default("India")
+  countryOther    String             @default("")
+  website         String             @default("")
+  /// CBSE | ICSE | STATE_BOARD | OTHER
+  affiliation     String             @default("")
+  affiliationOther String            @default("")
+  trustName       String             @default("")
+  schoolMobile    String             @default("")
+  landline        String             @default("")
+  stdCode         String             @default("")
+  email           String             @default("")
+  principalName   String             @default("")
+  principalMobile String             @default("")
+  principalEmail  String             @default("")
+  /// School Olympiad Incharge
+  contactName     String             @default("")
+  phone           String             @default("")
+  inchargeEmail   String             @default("")
+  /// Per-grade student counts from school form, e.g. { "3": 10, "5": 8 }
+  gradeCounts     Json               @default("{}")
+  /// Denormalized named-student totals (maintained on saveStep2) — required at ~7L scale
+  studentCount    Int                @default(0)
+  imoCount        Int                @default(0)
+  isoCount        Int                @default(0)
+  ieoCount        Int                @default(0)
+  rejectionNote   String?
+  submittedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  schoolAccount SchoolAccount          @relation(fields: [schoolAccountId], references: [id], onDelete: Cascade)
+  olympiadYear  OlympiadYear           @relation(fields: [olympiadYearId], references: [id], onDelete: Restrict)
+  students      RegistrationStudent[]
+  payment       RegistrationPayment?
+
+  @@unique([schoolAccountId, olympiadYearId])
+  @@unique([schoolCode, olympiadYearId])
+  @@index([olympiadYearId])
+  @@index([status])
+  @@index([olympiadYearId, status])
+  @@index([schoolAccountId])
+  @@index([schoolCode])
+}
+
+model RegistrationStudent {
+  id                   String  @id @default(cuid())
+  schoolRegistrationId String
+  /// Unique 8-digit registration number
+  registrationNumber   String
+  name                 String
+  grade                Int
+  section              String  @default("")
+  mobile               String  @default("")
+  imo                  Boolean @default(false)
+  iso                  Boolean @default(false)
+  ieo                  Boolean @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  schoolRegistration SchoolRegistration @relation(fields: [schoolRegistrationId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationNumber])
+  @@index([schoolRegistrationId])
+  @@index([schoolRegistrationId, grade])
+  @@index([schoolRegistrationId, name])
+  @@index([grade])
+  @@index([imo])
+  @@index([iso])
+  @@index([ieo])
+}
+
+model RegistrationPayment {
+  id                   String              @id @default(cuid())
+  schoolRegistrationId String              @unique
+  amountExpected       Decimal             @db.Decimal(10, 2)
+  paymentMethod        PaymentMethod       @default(UPI)
+  utr                  String
+  proofUrl             String
+  proofPublicId        String?
+  status               PaymentReviewStatus @default(PENDING)
+  reviewedByAdminId    String?
+  reviewedAt           DateTime?
+  adminNote            String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  schoolRegistration SchoolRegistration @relation(fields: [schoolRegistrationId], references: [id], onDelete: Cascade)
+  reviewedBy         Admin?             @relation("PaymentReviewedBy", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([  reviewedByAdminId])
+  @@index([utr])
+}
+
+enum StudentExportJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// Async CSV export of registration students (supports full Olympiad Year dumps)
+model StudentExportJob {
+  id             String                 @id @default(cuid())
+  createdById    String
+  status         StudentExportJobStatus @default(PENDING)
+  /// JSON filters: q, schoolCode, grade, olympiad, olympiadYear, status
+  filters        Json                   @default("{}")
+  totalRows      Int                    @default(0)
+  processedRows  Int                    @default(0)
+  fileName       String                 @default("")
+  filePath       String?
+  errorMessage   String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  createdBy Admin @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([createdById])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Atomic counters (legacy; school codes are random 6-digit, student regs random 8-digit)
+model SequenceCounter {
+  id    String @id
+  value Int    @default(0)
 }

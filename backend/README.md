@@ -6,7 +6,7 @@ Node.js + Express + TypeScript API for the i-CAPE Olympiad Management Platform.
 
 ```bash
 npm install
-cp .env.example .env
+# Create backend/.env with PORT, DATABASE_URL, AUTH_SECRET, etc.
 ```
 
 Ensure PostgreSQL is running (see root `docker-compose.yml`).
