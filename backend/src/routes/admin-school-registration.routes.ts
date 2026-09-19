@@ -1,6 +1,12 @@
 import { Router } from "express";
+import multer from "multer";
 import { requireAdmin } from "../middleware/auth.middleware";
 import { adminSchoolRegistrationController } from "../controllers/school-registration.controller";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+});
 
 const adminSchoolRegistrationRouter = Router();
 
@@ -49,6 +55,15 @@ adminSchoolRegistrationRouter.put(
 adminSchoolRegistrationRouter.put(
   "/accounts/:id/step/2",
   adminSchoolRegistrationController.saveAccountStep2,
+);
+adminSchoolRegistrationRouter.get(
+  "/step/2/template",
+  adminSchoolRegistrationController.downloadTemplate,
+);
+adminSchoolRegistrationRouter.post(
+  "/step/2/import",
+  upload.single("file"),
+  adminSchoolRegistrationController.importStudentsExcel,
 );
 adminSchoolRegistrationRouter.put(
   "/accounts/:id/step/3",

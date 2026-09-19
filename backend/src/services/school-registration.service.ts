@@ -427,7 +427,11 @@ export const schoolRegistrationService = {
       iso: boolean;
       ieo: boolean;
     }>,
-    options?: { draft?: boolean },
+    options?: {
+      draft?: boolean;
+      replaceAll?: boolean;
+      finalize?: boolean;
+    },
   ) {
     const year = CURRENT_OLYMPIAD_YEAR;
     const reg = await loadRegistration(accountId, year);
@@ -436,12 +440,25 @@ export const schoolRegistrationService = {
     assertSchoolDetailsComplete(reg);
 
     const draft = Boolean(options?.draft);
+    const replaceAll = options?.replaceAll !== false;
+    const finalize = options?.finalize !== false;
     const toSave = students.filter((s) => s.name.trim().length >= 2);
+
+    if (!draft && finalize && replaceAll && toSave.length === 0) {
+      throw new AppError("Add at least one student", 400);
+    }
 
     const existingById = new Map(reg.students.map((s) => [s.id, s]));
     const existingByReg = new Map(
       reg.students.map((s) => [s.registrationNumber, s]),
     );
+    const existingByIdentity = new Map<string, typeof reg.students>();
+    for (const s of reg.students) {
+      const key = `${s.name}|${s.grade}|${s.section}`;
+      const list = existingByIdentity.get(key);
+      if (list) list.push(s);
+      else existingByIdentity.set(key, [s]);
+    }
     const usedExisting = new Set<string>();
 
     const resolved: Array<{
@@ -463,18 +480,22 @@ export const schoolRegistrationService = {
         registrationNumber = existingById.get(s.id)!.registrationNumber;
       } else if (
         s.registrationNumber &&
-        existingByReg.has(s.registrationNumber)
+        /^\d{8}$/.test(s.registrationNumber)
       ) {
+        // Keep client-provided codes across chunked appends (after replace cleared DB)
         registrationNumber = s.registrationNumber;
+        if (existingByReg.has(s.registrationNumber)) {
+          usedExisting.add(s.registrationNumber);
+        }
       } else {
-        const match = reg.students.find(
-          (e) =>
-            !usedExisting.has(e.registrationNumber) &&
-            e.name === name &&
-            e.grade === s.grade &&
-            e.section === section,
-        );
-        if (match) registrationNumber = match.registrationNumber;
+        const key = `${name}|${s.grade}|${section}`;
+        const matches = existingByIdentity.get(key);
+        if (matches) {
+          const match = matches.find(
+            (e) => !usedExisting.has(e.registrationNumber),
+          );
+          if (match) registrationNumber = match.registrationNumber;
+        }
       }
 
       if (registrationNumber) usedExisting.add(registrationNumber);
@@ -505,41 +526,64 @@ export const schoolRegistrationService = {
       throw new AppError("Failed to allocate student registration numbers", 500);
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.registrationStudent.deleteMany({
+    // Avoid one long interactive transaction (proxy/DB timeouts on large lists).
+    // Chunked clients: replaceAll on first request, finalize on last.
+    if (replaceAll) {
+      await prisma.registrationStudent.deleteMany({
         where: { schoolRegistrationId: reg.id },
       });
-      if (withNumbers.length > 0) {
-        await tx.registrationStudent.createMany({
-          data: withNumbers.map((s) => ({
-            schoolRegistrationId: reg.id,
-            registrationNumber: s.registrationNumber,
-            name: s.name,
-            grade: s.grade,
-            section: s.section,
-            mobile: s.mobile,
-            imo: s.imo,
-            iso: s.iso,
-            ieo: s.ieo,
-          })),
-        });
+    }
+
+    const CREATE_CHUNK = 250;
+    for (let i = 0; i < withNumbers.length; i += CREATE_CHUNK) {
+      const chunk = withNumbers.slice(i, i + CREATE_CHUNK);
+      await prisma.registrationStudent.createMany({
+        data: chunk.map((s) => ({
+          schoolRegistrationId: reg.id,
+          registrationNumber: s.registrationNumber,
+          name: s.name,
+          grade: s.grade,
+          section: s.section,
+          mobile: s.mobile,
+          imo: s.imo,
+          iso: s.iso,
+          ieo: s.ieo,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    if (finalize) {
+      const allStudents = await prisma.registrationStudent.findMany({
+        where: { schoolRegistrationId: reg.id },
+        select: {
+          name: true,
+          grade: true,
+          section: true,
+          mobile: true,
+          imo: true,
+          iso: true,
+          ieo: true,
+        },
+      });
+      if (!draft && allStudents.length === 0) {
+        throw new AppError("Add at least one student", 400);
       }
-      await tx.schoolRegistration.update({
+      await prisma.schoolRegistration.update({
         where: { id: reg.id },
         data: {
-          gradeCounts: gradeCountsFromStudents(withNumbers),
-          ...olympiadCountsFromStudents(withNumbers),
+          gradeCounts: gradeCountsFromStudents(allStudents),
+          ...olympiadCountsFromStudents(allStudents),
           currentStep: draft
             ? Math.max(reg.currentStep, 2)
             : Math.max(reg.currentStep, 3),
-          // Keep REJECTED until payment is resubmitted so the school still sees the reason
           status:
             reg.status === RegistrationStatus.REJECTED
               ? RegistrationStatus.REJECTED
               : RegistrationStatus.DRAFT,
         },
       });
-    });
+    }
 
     return serializeRegistration(await loadRegistration(accountId, year));
   },
@@ -830,7 +874,7 @@ export const schoolRegistrationService = {
       imoCount: true,
       isoCount: true,
       ieoCount: true,
-      schoolAccount: { select: { id: true, email: true, name: true } },
+      schoolAccount: { select: { id: true, email: true, password: true, name: true } },
       olympiadYear: true,
       payment: {
         select: {
@@ -1149,7 +1193,7 @@ export const schoolRegistrationService = {
     const reg = await prisma.schoolRegistration.findUnique({
       where: { id },
       include: {
-        schoolAccount: { select: { id: true, email: true, name: true } },
+        schoolAccount: { select: { id: true, email: true, password: true, name: true } },
         payment: true,
       },
     });

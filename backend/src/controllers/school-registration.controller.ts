@@ -98,7 +98,11 @@ export const schoolRegistrationController = {
       const data = await schoolRegistrationService.saveStep2(
         school.sub,
         students,
-        { draft: Boolean(body.draft) },
+        {
+          draft: Boolean(body.draft),
+          replaceAll: body.replaceAll !== false,
+          finalize: body.finalize !== false,
+        },
       );
       res.json({
         success: true,
@@ -483,12 +487,50 @@ export const adminSchoolRegistrationController = {
       const data = await schoolRegistrationService.saveStep2(
         accountId,
         students,
-        { draft: Boolean(body.draft) },
+        {
+          draft: Boolean(body.draft),
+          replaceAll: body.replaceAll !== false,
+          finalize: body.finalize !== false,
+        },
       );
       res.json({
         success: true,
         message: body.draft ? "Draft saved" : "Students saved",
         data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async downloadTemplate(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const buffer = await schoolRegistrationService.buildStudentTemplate();
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="i-CAPE-Student-Registration-Template.xlsx"',
+      );
+      res.send(buffer);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async importStudentsExcel(req: Request, res: Response, next: NextFunction) {
+    try {
+      const file = req.file;
+      if (!file) throw new AppError("Excel file is required", 400);
+      const result = await schoolRegistrationService.importStudentsFromExcel(
+        file.buffer,
+      );
+      res.json({
+        success: true,
+        message: `Parsed ${result.students.length} student(s)`,
+        data: result,
       });
     } catch (err) {
       next(err);

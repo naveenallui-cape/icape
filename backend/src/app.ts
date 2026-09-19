@@ -45,8 +45,8 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "25mb" }));
-app.use(express.urlencoded({ extended: true, limit: "25mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 
 // Intentionally NO global rate limit — admin must not be throttled.

@@ -6,6 +6,7 @@ export type IncompleteRegistrationExportRow = {
   schoolName: string;
   schoolCode: string;
   email: string;
+  password: string;
   contactName: string;
   phone: string;
   city: string;
@@ -48,6 +49,7 @@ export function buildIncompleteRegistrationsPrintHtml(
         </td>
         <td class="mono">${escapeHtml(row.schoolCode || "—")}</td>
         <td>${escapeHtml(row.email || "—")}</td>
+        <td class="mono">${escapeHtml(row.password || "—")}</td>
         <td>
           ${escapeHtml(row.contactName || "—")}<br/>
           <span class="mono">${escapeHtml(row.phone || "—")}</span>
@@ -92,6 +94,7 @@ export function buildIncompleteRegistrationsPrintHtml(
         <th>School</th>
         <th>Code</th>
         <th>Login email</th>
+        <th>Password</th>
         <th>Contact</th>
         <th>Progress</th>
         <th>Students</th>
@@ -143,13 +146,14 @@ export function writeIncompleteRegistrationsPdf(
     "School",
     "Code",
     "Email",
+    "Password",
     "Contact",
     "Phone",
     "Progress",
     "Students",
     "Status",
   ];
-  const widths = [28, 130, 70, 130, 90, 85, 85, 55, 75];
+  const widths = [24, 110, 60, 110, 70, 80, 75, 75, 50, 65];
   const startX = doc.page.margins.left;
   let y = doc.y;
   const rowHeight = 22;
@@ -197,6 +201,7 @@ export function writeIncompleteRegistrationsPdf(
       row.schoolName || "—",
       row.schoolCode || "—",
       row.email || "—",
+      row.password || "—",
       row.contactName || "—",
       row.phone || "—",
       row.progress,

@@ -113,12 +113,22 @@ export const studentsStepSchema = z
   .object({
     students: z.array(z.any()).default([]),
     draft: z.boolean().optional().default(false),
+    /** First chunk of a multi-request save clears existing students. Default true. */
+    replaceAll: z.boolean().optional().default(true),
+    /** Last chunk updates counts / step. Default true. */
+    finalize: z.boolean().optional().default(true),
   })
   .superRefine((data, ctx) => {
     const schema = data.draft
       ? registrationStudentDraftSchema
       : registrationStudentSchema;
-    if (!data.draft && data.students.length < 1) {
+    // Only require at least one student on a finalizing non-draft save that replaces all
+    if (
+      !data.draft &&
+      data.finalize !== false &&
+      data.replaceAll !== false &&
+      data.students.length < 1
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Add at least one student",

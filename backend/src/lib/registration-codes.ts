@@ -10,6 +10,7 @@ const MIN_EIGHT_DIGIT = 10_000_000;
 const MAX_EIGHT_DIGIT = 99_999_999;
 const MAX_ATTEMPTS = 40;
 const CANDIDATE_BATCH = 64;
+const CANDIDATE_BATCH_LARGE = 500;
 
 function randomSixDigit(): string {
   return String(randomInt(MIN_SIX_DIGIT, MAX_SIX_DIGIT + 1));
@@ -64,7 +65,8 @@ export async function allocateStudentRegistrationNumbers(
   while (allocated.size < count && rounds < maxRounds) {
     rounds += 1;
     const needed = count - allocated.size;
-    const batchSize = Math.min(CANDIDATE_BATCH, Math.max(needed * 3, needed));
+    const maxBatch = count > 200 ? CANDIDATE_BATCH_LARGE : CANDIDATE_BATCH;
+    const batchSize = Math.min(maxBatch, Math.max(needed * 3, needed));
     const candidates = new Set<string>();
 
     while (candidates.size < batchSize) {

@@ -211,7 +211,8 @@ enum PaymentMethod {
 model SchoolAccount {
   id           String   @id @default(cuid())
   email        String   @unique
-  passwordHash String
+  /// Plaintext school portal password (admin-visible with registration details)
+  password     String
   name         String?
   mobile       String   @default("")
   createdAt    DateTime @default(now())

@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
 import {
   generatePasswordOtp,
@@ -34,11 +33,11 @@ export const schoolAuthService = {
     if (existing) {
       throw new AppError("An account with this email already exists", 409);
     }
-    const passwordHash = await bcrypt.hash(input.password, 10);
+    const password = input.password;
     const account = await prisma.schoolAccount.create({
       data: {
         email,
-        passwordHash,
+        password,
         name: input.name?.trim() || null,
         mobile: input.mobile?.trim() || "",
       },
@@ -48,6 +47,7 @@ export const schoolAuthService = {
         to: account.email,
         schoolName: account.name || "School",
         email: account.email,
+        password,
       }),
     );
     return {
@@ -63,8 +63,9 @@ export const schoolAuthService = {
       where: { email: normalizeEmail(email) },
     });
     if (!account) throw new AppError("Account not found", 404);
-    const ok = await bcrypt.compare(password, account.passwordHash);
-    if (!ok) throw new AppError("Incorrect password", 401);
+    if (account.password !== password) {
+      throw new AppError("Incorrect password", 401);
+    }
     return {
       id: account.id,
       email: account.email,
@@ -154,11 +155,10 @@ export const schoolAuthService = {
     if (row.schoolAccountId !== account.id) {
       throw new AppError("OTP is invalid or expired", 400);
     }
-    const passwordHash = await bcrypt.hash(input.password, 10);
     await prisma.$transaction([
       prisma.schoolAccount.update({
         where: { id: account.id },
-        data: { passwordHash },
+        data: { password: input.password },
       }),
       prisma.passwordResetToken.update({
         where: { id: row.id },
@@ -173,12 +173,11 @@ export const schoolAuthService = {
       where: { id: accountId },
     });
     if (!account) throw new AppError("School account not found", 404);
-    const passwordHash = await bcrypt.hash(password, 10);
     await prisma.schoolAccount.update({
       where: { id: accountId },
-      data: { passwordHash },
+      data: { password },
     });
-    return { id: account.id, email: account.email };
+    return { id: account.id, email: account.email, password };
   },
 
   /** Admin creates a school portal account (no login cookie). */
@@ -193,11 +192,11 @@ export const schoolAuthService = {
     if (existing) {
       throw new AppError("An account with this email already exists", 409);
     }
-    const passwordHash = await bcrypt.hash(input.password, 10);
+    const password = input.password;
     const account = await prisma.schoolAccount.create({
       data: {
         email,
-        passwordHash,
+        password,
         name: input.name.trim(),
         mobile: input.mobile.trim(),
       },
@@ -207,7 +206,7 @@ export const schoolAuthService = {
         to: account.email,
         schoolName: account.name || "School",
         email: account.email,
-        password: input.password,
+        password,
       }),
     );
     return {
@@ -215,6 +214,7 @@ export const schoolAuthService = {
       email: account.email,
       name: account.name || "School",
       mobile: account.mobile || "",
+      password,
     };
   },
 
@@ -388,6 +388,7 @@ export const schoolAuthService = {
         select: {
           id: true,
           email: true,
+          password: true,
           name: true,
           createdAt: true,
           updatedAt: true,
@@ -430,6 +431,7 @@ export const schoolAuthService = {
       return {
         id: row.id,
         email: row.email,
+        password: row.password,
         name: row.name,
         createdAt: row.createdAt,
         updatedAt: registrationUpdatedAt || row.updatedAt,
@@ -528,6 +530,7 @@ export const schoolAuthService = {
       schoolName: row.schoolName || row.name || "Unnamed school",
       schoolCode: row.schoolCode || "",
       email: row.email,
+      password: row.password || "",
       contactName: row.contactName || "",
       phone: row.phone || "",
       city: row.city || "",
