@@ -4,6 +4,7 @@ import {
   passwordResetTokenKey,
   sendAccountCreatedEmail,
   sendPasswordOtpEmail,
+  sendPasswordUpdatedEmail,
 } from "../lib/mail";
 import { AppError } from "../middleware/error.middleware";
 import {
@@ -177,7 +178,112 @@ export const schoolAuthService = {
       where: { id: accountId },
       data: { password },
     });
+    queueMail(
+      sendPasswordUpdatedEmail({
+        to: account.email,
+        schoolName: account.name || "School",
+        email: account.email,
+        password,
+      }),
+    );
     return { id: account.id, email: account.email, password };
+  },
+
+  async getAccountDetail(accountId: string) {
+    const row = await prisma.schoolAccount.findUnique({
+      where: { id: accountId },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: { registrations: true } },
+        registrations: {
+          where: { olympiadYear: CURRENT_OLYMPIAD_YEAR },
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            schoolCode: true,
+            schoolName: true,
+            address: true,
+            city: true,
+            district: true,
+            state: true,
+            pincode: true,
+            country: true,
+            countryOther: true,
+            website: true,
+            affiliation: true,
+            affiliationOther: true,
+            trustName: true,
+            schoolMobile: true,
+            landline: true,
+            stdCode: true,
+            email: true,
+            principalName: true,
+            principalMobile: true,
+            principalEmail: true,
+            contactName: true,
+            phone: true,
+            inchargeEmail: true,
+            status: true,
+            currentStep: true,
+            submittedAt: true,
+            updatedAt: true,
+            olympiadYear: true,
+            studentCount: true,
+            imoCount: true,
+            isoCount: true,
+            ieoCount: true,
+            payment: {
+              select: {
+                status: true,
+                paymentMethod: true,
+                utr: true,
+                amountExpected: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!row) throw new AppError("School account not found", 404);
+
+    const registration = row.registrations[0] || null;
+    const imo = registration?.imoCount ?? 0;
+    const iso = registration?.isoCount ?? 0;
+    const ieo = registration?.ieoCount ?? 0;
+
+    return {
+      id: row.id,
+      email: row.email,
+      password: row.password,
+      name: row.name,
+      createdAt: row.createdAt,
+      updatedAt: registration?.updatedAt || row.updatedAt,
+      registrationCount: row._count.registrations,
+      schoolName: registration?.schoolName || row.name || "",
+      schoolCode: registration?.schoolCode || "",
+      city: registration?.city || "",
+      state: registration?.state || "",
+      district: registration?.district || "",
+      contactName: registration?.contactName || "",
+      phone: registration?.phone || registration?.schoolMobile || "",
+      status: registration?.status || null,
+      currentStep: registration?.currentStep ?? 0,
+      studentCount: registration?.studentCount ?? 0,
+      imoCount: imo,
+      isoCount: iso,
+      ieoCount: ieo,
+      olympiadTotal: imo + iso + ieo,
+      olympiadYear: registration?.olympiadYear
+        ? olympiadYearMeta(registration.olympiadYear)
+        : null,
+      registration,
+    };
   },
 
   /** Admin creates a school portal account (no login cookie). */

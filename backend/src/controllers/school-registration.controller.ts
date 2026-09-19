@@ -433,6 +433,17 @@ export const adminSchoolRegistrationController = {
     }
   },
 
+  async getAccountDetail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await schoolAuthService.getAccountDetail(
+        String(req.params.id),
+      );
+      res.json({ success: true, message: "OK", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async getAccountRegistration(req: Request, res: Response, next: NextFunction) {
     try {
       const accountId = String(req.params.id);
@@ -696,7 +707,7 @@ export const adminSchoolRegistrationController = {
       );
       res.json({
         success: true,
-        message: "School password updated",
+        message: "School password updated. Login details emailed to the school.",
         data,
       });
     } catch (err) {

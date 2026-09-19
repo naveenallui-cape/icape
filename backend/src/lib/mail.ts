@@ -303,6 +303,31 @@ export async function sendAccountCreatedEmail(input: {
   });
 }
 
+export async function sendPasswordUpdatedEmail(input: {
+  to: string;
+  schoolName: string;
+  email: string;
+  password: string;
+}) {
+  const loginUrl = `${env.frontendUrl.replace(/\/$/, "")}/school/login`;
+  return sendSchoolMail({
+    to: input.to,
+    subject: "i-CAPE school password updated",
+    heading: "Your password was updated",
+    intro: `Hello${input.schoolName ? `, ${input.schoolName}` : ""}. An administrator has updated your i-CAPE school portal password. Use the details below to sign in.`,
+    details: [
+      { label: "Login link", value: loginUrl },
+      { label: "Email", value: input.email },
+      { label: "New password", value: input.password },
+    ],
+    paragraphs: [
+      "Keep this password safe. You can change it anytime from Forgot password on the login page.",
+      "If you did not expect this change, contact i-CAPE support.",
+    ],
+    cta: { label: "Open school login", url: loginUrl },
+  });
+}
+
 export async function sendRegistrationSubmittedEmail(input: {
   to: string;
   schoolName: string;

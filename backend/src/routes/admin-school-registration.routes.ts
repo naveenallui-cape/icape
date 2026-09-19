@@ -45,6 +45,10 @@ adminSchoolRegistrationRouter.post(
   adminSchoolRegistrationController.createAccount,
 );
 adminSchoolRegistrationRouter.get(
+  "/accounts/:id/detail",
+  adminSchoolRegistrationController.getAccountDetail,
+);
+adminSchoolRegistrationRouter.get(
   "/accounts/:id",
   adminSchoolRegistrationController.getAccountRegistration,
 );
