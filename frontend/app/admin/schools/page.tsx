@@ -1,22 +1,16 @@
 "use client";
 
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
-  Building2,
   ChevronLeft,
   ChevronRight,
-  Eye,
-  GraduationCap,
   KeyRound,
-  MapPin,
-  UserRound,
-  Wallet,
   X,
 } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { paymentReferenceField, type PaymentMethod } from "@/lib/payment-details";
 import { cn } from "@/lib/utils";
 import { AdminTableShell, AdminTableSkeletonRows } from "@/components/admin/admin-table-shell";
 import { AdminSearchField } from "@/components/admin/admin-search-field";
@@ -27,45 +21,6 @@ import {
   fetchAdminAccounts,
 } from "@/lib/admin-queries";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-
-type RegistrationDetail = {
-  id: string;
-  schoolCode: string;
-  schoolName: string;
-  address: string;
-  city: string;
-  district: string;
-  state: string;
-  pincode: string;
-  country: string;
-  countryOther: string;
-  website: string;
-  affiliation: string;
-  affiliationOther: string;
-  trustName: string;
-  schoolMobile: string;
-  landline: string;
-  stdCode: string;
-  email: string;
-  principalName: string;
-  principalMobile: string;
-  principalEmail: string;
-  contactName: string;
-  phone: string;
-  inchargeEmail: string;
-  status: string;
-  currentStep: number;
-  submittedAt: string | null;
-  updatedAt: string;
-  olympiadYear: { label: string; code: string } | null;
-  _count: { students: number };
-  payment: {
-    status: string;
-    paymentMethod?: PaymentMethod;
-    utr: string;
-    amountExpected: string | number;
-  } | null;
-};
 
 type AccountRow = {
   id: string;
@@ -88,7 +43,6 @@ type AccountRow = {
   ieoCount: number;
   olympiadTotal: number;
   olympiadYear: { label: string; code: string } | null;
-  registration: RegistrationDetail | null;
 };
 
 const PAGE_SIZE = 20;
@@ -108,49 +62,6 @@ function statusClass(status: string | null) {
   }
 }
 
-function DetailItem({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | number | null;
-}) {
-  return (
-    <div>
-      <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-        {label}
-      </dt>
-      <dd className="mt-1 text-sm font-semibold leading-snug text-brand">
-        {value === null || value === undefined || value === "" ? "—" : value}
-      </dd>
-    </div>
-  );
-}
-
-function DetailSection({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-xl border border-border/80 bg-white">
-      <div className="flex items-center gap-2.5 border-b border-border/70 bg-brand-soft/40 px-4 py-2.5">
-        <span className="inline-flex size-8 items-center justify-center rounded-lg bg-brand text-accent">
-          <Icon className="size-4" aria-hidden />
-        </span>
-        <h3 className="text-sm font-bold text-brand">{title}</h3>
-      </div>
-      <dl className="grid gap-x-6 gap-y-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
-        {children}
-      </dl>
-    </section>
-  );
-}
-
 export default function AdminSchoolsPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
@@ -158,7 +69,6 @@ export default function AdminSchoolsPage() {
   const q = debouncedInput.trim();
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [selected, setSelected] = useState<AccountRow | null>(null);
   const [passwordId, setPasswordId] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -173,7 +83,7 @@ export default function AdminSchoolsPage() {
       fetchAdminAccounts({
         page,
         limit: PAGE_SIZE,
-        q,
+        q: q || undefined,
         approved: true,
       }),
     placeholderData: keepPreviousData,
@@ -213,12 +123,11 @@ export default function AdminSchoolsPage() {
       setError(res.message);
       return;
     }
-    setMessage("Password updated");
+    setMessage(res.message || "Password updated");
     setPassword("");
     setPasswordId(null);
   }
 
-  const reg = selected?.registration;
   const queryError =
     error ||
     (schoolsQuery.isError
@@ -361,15 +270,12 @@ export default function AdminSchoolsPage() {
                     {row.olympiadTotal}
                   </td>
                   <td className="px-3 py-3 text-center align-middle">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelected(row)}
+                    <Link
+                      href={`/admin/schools/${row.id}`}
+                      className="text-sm font-semibold text-brand underline underline-offset-2 hover:text-brand-hover"
                     >
-                      <Eye className="size-3.5" aria-hidden />
                       Details
-                    </Button>
+                    </Link>
                   </td>
                   <td className="px-3 py-3 text-center align-middle">
                     <Button
@@ -472,193 +378,6 @@ export default function AdminSchoolsPage() {
               >
                 Cancel
               </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {selected ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-brand/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-4">
-          <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-3xl bg-[#f4f7fb] shadow-2xl sm:rounded-3xl">
-            <div className="relative shrink-0 overflow-hidden bg-gradient-to-br from-brand via-brand to-brand-hover px-5 py-5 text-white sm:px-7 sm:py-6">
-              <div
-                className="pointer-events-none absolute inset-0 opacity-20"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(circle at 15% 20%, #d4af37 0%, transparent 40%), radial-gradient(circle at 90% 0%, #fff 0%, transparent 35%)",
-                }}
-                aria-hidden
-              />
-              <div className="relative flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">
-                    School profile
-                  </p>
-                  <h2 className="mt-1 truncate font-serif text-2xl font-semibold tracking-tight">
-                    {selected.schoolName || selected.name || "School account"}
-                  </h2>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {selected.schoolCode ? (
-                      <span className="inline-flex items-center rounded-md bg-white/10 px-2.5 py-1 font-mono text-xs font-bold tracking-wider text-accent">
-                        {selected.schoolCode}
-                      </span>
-                    ) : null}
-                    <span
-                      className={cn(
-                        "inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold",
-                        statusClass(selected.status),
-                      )}
-                    >
-                      {selected.status || "No registration"}
-                    </span>
-                    <span className="inline-flex rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-white/90">
-                      {selected.studentCount} students
-                    </span>
-                  </div>
-                  <p className="mt-3 flex items-center gap-1.5 text-sm text-white/75">
-                    <MapPin className="size-3.5 shrink-0" aria-hidden />
-                    {[selected.city, selected.district, selected.state]
-                      .filter(Boolean)
-                      .join(", ") || "Location not added"}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0 border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-                  onClick={() => setSelected(null)}
-                >
-                  <X className="size-4" aria-hidden />
-                </Button>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
-              {reg ? (
-                <>
-                  <DetailSection icon={Building2} title="School details">
-                    <DetailItem label="School name" value={reg.schoolName} />
-                    <DetailItem label="School code" value={reg.schoolCode} />
-                    <DetailItem
-                      label="Affiliation"
-                      value={
-                        reg.affiliation === "OTHER"
-                          ? reg.affiliationOther || "Other"
-                          : reg.affiliation
-                      }
-                    />
-                    <DetailItem label="Trust / Society" value={reg.trustName} />
-                    <DetailItem label="Website" value={reg.website} />
-                    <DetailItem label="School email" value={reg.email} />
-                    <DetailItem
-                      label="School mobile"
-                      value={reg.schoolMobile}
-                    />
-                    <DetailItem
-                      label="Landline"
-                      value={
-                        reg.stdCode
-                          ? `${reg.stdCode} – ${reg.landline}`
-                          : reg.landline
-                      }
-                    />
-                  </DetailSection>
-
-                  <DetailSection icon={MapPin} title="Address">
-                    <DetailItem
-                      label="Address"
-                      value={reg.address}
-                    />
-                    <DetailItem label="City" value={reg.city} />
-                    <DetailItem label="District" value={reg.district} />
-                    <DetailItem label="State" value={reg.state} />
-                    <DetailItem label="Pin code" value={reg.pincode} />
-                    <DetailItem
-                      label="Country"
-                      value={
-                        reg.country === "Other"
-                          ? reg.countryOther || "Other"
-                          : reg.country
-                      }
-                    />
-                  </DetailSection>
-
-                  <DetailSection icon={UserRound} title="Principal">
-                    <DetailItem label="Name" value={reg.principalName} />
-                    <DetailItem label="Mobile" value={reg.principalMobile} />
-                    <DetailItem label="Email" value={reg.principalEmail} />
-                  </DetailSection>
-
-                  <DetailSection
-                    icon={GraduationCap}
-                    title="Olympiad incharge"
-                  >
-                    <DetailItem label="Name" value={reg.contactName} />
-                    <DetailItem label="Mobile" value={reg.phone} />
-                    <DetailItem label="Email" value={reg.inchargeEmail} />
-                  </DetailSection>
-
-                  {reg.payment ? (
-                    <DetailSection icon={Wallet} title="Payment">
-                      <DetailItem label="Status" value={reg.payment.status} />
-                      <DetailItem
-                        label="Method"
-                        value={reg.payment.paymentMethod || "UPI"}
-                      />
-                      <DetailItem
-                        label={paymentReferenceField(
-                          reg.payment.paymentMethod || "UPI",
-                        ).label.replace(" *", "")}
-                        value={reg.payment.utr}
-                      />
-                      <DetailItem
-                        label="Amount"
-                        value={`INR ${Number(reg.payment.amountExpected).toLocaleString("en-IN")}`}
-                      />
-                    </DetailSection>
-                  ) : null}
-                </>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-border bg-white px-5 py-10 text-center">
-                  <Building2 className="mx-auto size-8 text-muted" aria-hidden />
-                  <p className="mt-3 text-sm font-semibold text-brand">
-                    No registration started
-                  </p>
-                  <p className="mt-1 text-sm text-muted">
-                    This account has not filled school registration details yet.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-white px-4 py-3 sm:px-6">
-              <p className="text-xs text-muted">
-                Login email:{" "}
-                <span className="font-semibold text-brand">{selected.email}</span>
-                {" · "}
-                Password:{" "}
-                <span className="font-mono font-semibold text-brand">
-                  {selected.password || "—"}
-                </span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setPasswordId(selected.id);
-                    setSelected(null);
-                    setPassword("");
-                  }}
-                >
-                  <KeyRound className="size-4" aria-hidden />
-                  Set password
-                </Button>
-                <Button type="button" onClick={() => setSelected(null)}>
-                  Close
-                </Button>
-              </div>
             </div>
           </div>
         </div>

@@ -98,7 +98,12 @@ function isNavActive(href: string, pathname: string) {
     return pathname === "/admin/results";
   }
   if (href === "/admin/schools") {
-    return pathname === "/admin/schools";
+    return (
+      pathname === "/admin/schools" ||
+      (pathname.startsWith("/admin/schools/") &&
+        !pathname.startsWith("/admin/schools/register") &&
+        !pathname.startsWith("/admin/schools/add-students"))
+    );
   }
   if (
     href === "/admin/results/upload" ||
