@@ -20,6 +20,9 @@ export type RegistrationStudent = {
   ieo: boolean;
 };
 
+/** Max named students per school registration (admin + school portal). */
+export const MAX_STUDENTS_PER_REGISTRATION = 5000;
+
 export type SchoolRegistration = {
   id: string;
   status: "DRAFT" | "UNDER_REVIEW" | "APPROVED" | "REJECTED";
@@ -189,6 +192,13 @@ async function saveStudentsChunkedUnlocked(
   const draft = Boolean(options?.draft);
   const CHUNK_SIZE = 300;
   const named = students.filter((s) => String(s.name ?? "").trim().length >= 2);
+
+  if (named.length > MAX_STUDENTS_PER_REGISTRATION) {
+    return {
+      success: false,
+      message: "Too many students for one registration",
+    };
+  }
 
   if (named.length === 0) {
     return apiRequest<SchoolRegistration>(path, {

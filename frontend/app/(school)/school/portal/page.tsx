@@ -31,6 +31,7 @@ import {
   checkPaymentReference,
   studentTemplateUrl,
   uploadPaymentProofFile,
+  MAX_STUDENTS_PER_REGISTRATION,
   type RegistrationStudent,
   type SchoolRegistration,
 } from "@/lib/school-api";
@@ -737,6 +738,10 @@ function SchoolPortalPage() {
     }
     if (payload === lastDraftPayloadRef.current) return;
     if (draftStudents.length === 0) return;
+    if (draftStudents.length > MAX_STUDENTS_PER_REGISTRATION) {
+      setDraftStatus("error");
+      return;
+    }
 
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     const debounceMs = draftStudents.length > 400 ? 1200 : 700;
@@ -818,6 +823,10 @@ function SchoolPortalPage() {
       focusStudentError(target, "name");
       return;
     }
+    if (cleaned.length > MAX_STUDENTS_PER_REGISTRATION) {
+      setError("Too many students for one registration");
+      return;
+    }
     for (const [i, s] of students.entries()) {
       if (!s.name.trim()) continue;
       if (!isStudentGrade(s.grade)) {
@@ -884,6 +893,10 @@ function SchoolPortalPage() {
     const res = await importStudentsExcel(file);
     if (!res.success || !res.data) {
       setError(res.message);
+      return;
+    }
+    if (res.data.students.length > MAX_STUDENTS_PER_REGISTRATION) {
+      setError("Too many students to import at once");
       return;
     }
     setStudents(

@@ -16,7 +16,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest, getApiUrl, type ApiResponse } from "@/lib/api";
-import { saveStudentsChunked, type RegistrationStudent } from "@/lib/school-api";
+import { saveStudentsChunked, type RegistrationStudent, MAX_STUDENTS_PER_REGISTRATION } from "@/lib/school-api";
 import { computeRegistrationFee, PAYMENT_METHODS, paymentReferenceField, type PaymentMethod } from "@/lib/payment-details";
 import { toTitleCaseInput } from "@/lib/title-case";
 import { cn } from "@/lib/utils";
@@ -846,6 +846,10 @@ function AdminRegisterSchoolPageInner() {
     }
     if (payload === lastDraftPayloadRef.current) return;
     if (draftStudents.length === 0) return;
+    if (draftStudents.length > MAX_STUDENTS_PER_REGISTRATION) {
+      setDraftStatus("error");
+      return;
+    }
 
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     const debounceMs = draftStudents.length > 400 ? 1200 : 700;
@@ -990,6 +994,10 @@ function AdminRegisterSchoolPageInner() {
       setError("Enter at least one student name");
       return;
     }
+    if (cleaned.length > MAX_STUDENTS_PER_REGISTRATION) {
+      setError("Too many students for one registration");
+      return;
+    }
     for (const [i, s] of students.entries()) {
       if (!s.name.trim()) continue;
       if (!isStudentGrade(s.grade) || (!s.imo && !s.iso && !s.ieo)) {
@@ -1054,6 +1062,10 @@ function AdminRegisterSchoolPageInner() {
     const res = await importAdminStudentsExcel(file);
     if (!res.success || !res.data) {
       setError(res.message);
+      return;
+    }
+    if (res.data.students.length > MAX_STUDENTS_PER_REGISTRATION) {
+      setError("Too many students to import at once");
       return;
     }
     skipNextDraftRef.current = true;
