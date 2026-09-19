@@ -242,10 +242,10 @@ async function processExportJob(jobId: string) {
       const sheet = workbook.addWorksheet("Students");
       sheet.columns = [
         { header: "S.No.", key: "serial", width: 8 },
-        { header: "School Code", key: "schoolCode", width: 14 },
-        { header: "School Name", key: "schoolName", width: 32 },
         { header: "Reg. No.", key: "registrationNumber", width: 14 },
         { header: "Student", key: "name", width: 28 },
+        { header: "School Code", key: "schoolCode", width: 14 },
+        { header: "School Name", key: "schoolName", width: 32 },
         { header: "Grade", key: "grade", width: 8 },
         { header: "Section", key: "section", width: 10 },
         { header: "Olympiads", key: "olympiads", width: 16 },

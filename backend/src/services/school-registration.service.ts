@@ -490,7 +490,13 @@ export const schoolRegistrationService = {
     }> = toSave.map((s) => {
       const name = s.name.trim().toUpperCase();
       const section = (s.section || "").trim().toUpperCase();
-      const mobile = (s.mobile || "").trim();
+      const mobile = (() => {
+        const digits = (s.mobile || "").replace(/\D/g, "");
+        if (digits.length === 10) return digits;
+        if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
+        if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1);
+        return "";
+      })();
       let registrationNumber: string | null = null;
 
       if (s.id && existingById.has(s.id)) {
@@ -615,10 +621,10 @@ export const schoolRegistrationService = {
       { header: "Student Name", key: "name", width: 28 },
       { header: "Grade", key: "grade", width: 10 },
       { header: "Section", key: "section", width: 10 },
-      { header: "WhatsApp/Mobile", key: "mobile", width: 16 },
-      { header: "Maths (IMO)", key: "imo", width: 12 },
-      { header: "Science (ISO)", key: "iso", width: 14 },
-      { header: "English (IEO)", key: "ieo", width: 14 },
+      { header: "Mobile", key: "mobile", width: 14 },
+      { header: "IMO", key: "imo", width: 10 },
+      { header: "ISO", key: "iso", width: 10 },
+      { header: "IEO", key: "ieo", width: 10 },
     ];
     sheet.addRow({
       name: "SAI KIRAN BASANI",
@@ -668,7 +674,7 @@ export const schoolRegistrationService = {
 
     if (nameCol < 0 || gradeCol < 0) {
       throw new AppError(
-        "Excel must include Student Name and Grade columns",
+        "Excel file was read, but Student Name and Grade columns were not found. Download the Excel template, fill it, and import that file.",
         400,
       );
     }
@@ -688,6 +694,7 @@ export const schoolRegistrationService = {
       imo: boolean;
       iso: boolean;
       ieo: boolean;
+      importWarning?: string;
     }> = [];
     const errors: string[] = [];
 
@@ -704,10 +711,7 @@ export const schoolRegistrationService = {
       ) {
         return;
       }
-      if (!name || !Number.isInteger(grade) || grade < 3 || grade > 10) {
-        errors.push(`Row ${rowNumber}: invalid name or grade`);
-        return;
-      }
+
       const section =
         sectionCol > 0
           ? String(row.getCell(sectionCol).value ?? "")
@@ -716,16 +720,64 @@ export const schoolRegistrationService = {
           : "";
       const mobile =
         mobileCol > 0
-          ? String(row.getCell(mobileCol).value ?? "").trim()
+          ? String(row.getCell(mobileCol).value ?? "").replace(/\D/g, "")
           : "";
+      const mobileOk =
+        mobile.length === 10
+          ? mobile
+          : mobile.length === 12 && mobile.startsWith("91")
+            ? mobile.slice(2)
+            : mobile.length === 11 && mobile.startsWith("0")
+              ? mobile.slice(1)
+              : "";
       const imo = imoCol > 0 ? truthy(row.getCell(imoCol).value) : false;
       const iso = isoCol > 0 ? truthy(row.getCell(isoCol).value) : false;
       const ieo = ieoCol > 0 ? truthy(row.getCell(ieoCol).value) : false;
-      if (!imo && !iso && !ieo) {
-        errors.push(`Row ${rowNumber}: select at least one olympiad`);
+
+      const gradeOk = Number.isInteger(grade) && grade >= 3 && grade <= 10;
+      const nameOk = name.length >= 2;
+      const olympiadOk = imo || iso || ieo;
+
+      if (!nameOk || !gradeOk) {
+        const warning = `Row ${rowNumber}: invalid name or grade — fix and save`;
+        errors.push(warning);
+        students.push({
+          name: nameOk ? name : "",
+          grade: gradeOk ? grade : 3,
+          section,
+          mobile: mobileOk,
+          imo,
+          iso,
+          ieo,
+          importWarning: warning,
+        });
         return;
       }
-      students.push({ name, grade, section, mobile, imo, iso, ieo });
+      if (!olympiadOk) {
+        const warning = `Row ${rowNumber}: select at least one olympiad — fix and save`;
+        errors.push(warning);
+        students.push({
+          name,
+          grade,
+          section,
+          mobile: mobileOk,
+          imo: false,
+          iso: false,
+          ieo: false,
+          importWarning: warning,
+        });
+        return;
+      }
+
+      students.push({
+        name,
+        grade,
+        section,
+        mobile: mobileOk,
+        imo,
+        iso,
+        ieo,
+      });
     });
 
     if (students.length === 0) {
@@ -1096,7 +1148,7 @@ export const schoolRegistrationService = {
   }) {
     const studentWhere = this.buildAdminStudentWhere(input);
 
-    const [total, rows, schoolRows] = await Promise.all([
+    const [total, rows, schoolRows, olympiadSums] = await Promise.all([
       prisma.registrationStudent.count({ where: studentWhere }),
       prisma.registrationStudent.findMany({
         where: studentWhere,
@@ -1135,9 +1187,24 @@ export const schoolRegistrationService = {
           schoolName: true,
         },
       }),
+      prisma.schoolRegistration.aggregate({
+        where: {
+          status: RegistrationStatus.APPROVED,
+          olympiadYear: CURRENT_OLYMPIAD_YEAR,
+        },
+        _sum: {
+          imoCount: true,
+          isoCount: true,
+          ieoCount: true,
+        },
+        _count: { _all: true },
+      }),
     ]);
 
     const students = rows.map((s) => this.mapAdminStudentRow(s));
+    const imo = olympiadSums._sum.imoCount ?? 0;
+    const iso = olympiadSums._sum.isoCount ?? 0;
+    const ieo = olympiadSums._sum.ieoCount ?? 0;
 
     return {
       students,
@@ -1147,6 +1214,13 @@ export const schoolRegistrationService = {
           schoolName: s.schoolName,
         })),
         years: listOlympiadYears(),
+      },
+      totals: {
+        schools: olympiadSums._count._all,
+        imo,
+        ieo,
+        iso,
+        total: imo + ieo + iso,
       },
       pagination: {
         page: input.page,
@@ -1375,15 +1449,13 @@ export const schoolRegistrationService = {
     }
 
     const amountExpected = computeRegistrationFee(reg.students);
-    const approve = data.approve === true;
+    const approve = data.approve !== false;
+    const paymentMethod = data.paymentMethod || "UPI";
     const utr =
       data.utr.trim() ||
       (approve ? "ADMIN-DIRECT-APPROVAL" : "");
     if (!approve && utr.length < 6) {
       throw new AppError("Enter payment reference number", 400);
-    }
-    if (!data.paymentMethod) {
-      throw new AppError("Select payment method", 400);
     }
     if (data.utr.trim()) {
       await assertPaymentReferenceAvailable(data.utr, reg.id);
@@ -1393,8 +1465,8 @@ export const schoolRegistrationService = {
       "https://i-cape.local/admin-offline-payment-proof";
     const note =
       data.adminNote?.trim() ||
-      (approve && !data.utr.trim()
-        ? "Approved by admin (no UTR)"
+      (approve
+        ? "Admin direct registration"
         : data.proofUrl
           ? null
           : "Registered by admin (offline payment)");
@@ -1405,7 +1477,7 @@ export const schoolRegistrationService = {
         create: {
           schoolRegistrationId: reg.id,
           amountExpected,
-          paymentMethod: data.paymentMethod,
+          paymentMethod,
           utr,
           proofUrl,
           proofPublicId: data.proofPublicId || null,
@@ -1418,7 +1490,7 @@ export const schoolRegistrationService = {
         },
         update: {
           amountExpected,
-          paymentMethod: data.paymentMethod,
+          paymentMethod,
           utr,
           proofUrl,
           proofPublicId: data.proofPublicId || null,

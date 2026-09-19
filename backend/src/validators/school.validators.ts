@@ -192,12 +192,12 @@ export const adminCreateSchoolAccountSchema = z.object({
 
 export const adminPaymentStepSchema = z
   .object({
-    paymentMethod: paymentMethodSchema,
+    paymentMethod: paymentMethodSchema.optional(),
     utr: z.string().trim().optional().default(""),
     proofUrl: z.string().url().optional(),
     proofPublicId: z.string().optional(),
     /** When true, mark payment verified and registration approved */
-    approve: z.boolean().optional().default(false),
+    approve: z.boolean().optional().default(true),
     adminNote: z.string().trim().max(500).optional(),
   })
   .superRefine((data, ctx) => {

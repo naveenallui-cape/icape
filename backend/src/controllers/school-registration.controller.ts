@@ -549,9 +549,10 @@ export const adminSchoolRegistrationController = {
       );
       res.json({
         success: true,
-        message: body.approve
-          ? "School registered and approved"
-          : "School submitted for payment verification",
+        message:
+          body.approve !== false
+            ? "School registered and approved"
+            : "School submitted for payment verification",
         data,
       });
     } catch (err) {
