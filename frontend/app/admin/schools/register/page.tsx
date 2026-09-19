@@ -60,7 +60,16 @@ const schoolSchema = z
     country: z.enum(["India", "Other"]),
     countryOther: z.string().trim().max(80),
     website: z.string().trim().max(200),
-    affiliation: z.enum(["CBSE", "ICSE", "STATE_BOARD", "OTHER"]),
+    affiliation: z
+      .string()
+      .refine(
+        (v) =>
+          v === "CBSE" ||
+          v === "ICSE" ||
+          v === "STATE_BOARD" ||
+          v === "OTHER",
+        { message: "Select affiliation" },
+      ),
     affiliationOther: z.string().trim().max(80),
     trustName: z.string().trim().min(2, "Trust / Society name is required"),
     schoolMobile: z.string().trim().regex(MOBILE_DIGITS_REGEX, MOBILE_ERROR),
@@ -92,7 +101,8 @@ const schoolSchema = z
   });
 
 type AccountFormValues = z.infer<typeof accountSchema>;
-type SchoolFormValues = z.infer<typeof schoolSchema>;
+type SchoolFormValues = z.input<typeof schoolSchema>;
+type SchoolFormOutput = z.output<typeof schoolSchema>;
 
 type StudentRow = {
   id?: string;
@@ -559,7 +569,7 @@ function AdminRegisterSchoolPageInner() {
     defaultValues: { name: "", email: "", mobile: "", password: "" },
   });
 
-  const schoolForm = useForm<SchoolFormValues>({
+  const schoolForm = useForm<SchoolFormValues, unknown, SchoolFormOutput>({
     resolver: zodResolver(schoolSchema),
     defaultValues: {
       schoolName: "",
@@ -571,7 +581,7 @@ function AdminRegisterSchoolPageInner() {
       country: "India",
       countryOther: "",
       website: "",
-      affiliation: "CBSE",
+      affiliation: "",
       affiliationOther: "",
       trustName: "",
       schoolMobile: "",
@@ -644,7 +654,7 @@ function AdminRegisterSchoolPageInner() {
       country: "India",
       countryOther: "",
       website: "",
-      affiliation: "CBSE",
+      affiliation: "",
       affiliationOther: "",
       trustName: "",
       schoolMobile: "",
@@ -688,11 +698,12 @@ function AdminRegisterSchoolPageInner() {
     rememberAccount(account.id);
 
     const affiliation =
+      reg.affiliation === "CBSE" ||
       reg.affiliation === "ICSE" ||
       reg.affiliation === "STATE_BOARD" ||
       reg.affiliation === "OTHER"
         ? reg.affiliation
-        : "CBSE";
+        : "";
 
     schoolForm.reset({
       schoolName: reg.schoolName || "",
@@ -1004,7 +1015,7 @@ function AdminRegisterSchoolPageInner() {
     applyAccountUrl(res.data.account.id);
   }
 
-  async function onSaveSchool(values: SchoolFormValues) {
+  async function onSaveSchool(values: SchoolFormOutput) {
     setError("");
     setSaving(true);
     const res = await apiRequest<RegistrationPayload>(
@@ -1684,11 +1695,17 @@ function AdminRegisterSchoolPageInner() {
             <Field label="Website">
               <Input {...schoolForm.register("website")} />
             </Field>
-            <Field label="Affiliation *">
+            <Field
+              label="Affiliation *"
+              error={schoolForm.formState.errors.affiliation?.message}
+            >
               <select
                 className="h-9 w-full rounded-md border border-border px-3 text-sm"
                 {...schoolForm.register("affiliation")}
               >
+                <option value="" disabled>
+                  Select affiliation
+                </option>
                 <option value="CBSE">CBSE</option>
                 <option value="ICSE">ICSE</option>
                 <option value="STATE_BOARD">State Board</option>

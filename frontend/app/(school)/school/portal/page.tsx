@@ -54,7 +54,16 @@ const schoolSchema = z
     country: z.enum(["India", "Other"]),
     countryOther: z.string().trim().max(80),
     website: z.string().trim().max(200),
-    affiliation: z.enum(["CBSE", "ICSE", "STATE_BOARD", "OTHER"]),
+    affiliation: z
+      .string()
+      .refine(
+        (v) =>
+          v === "CBSE" ||
+          v === "ICSE" ||
+          v === "STATE_BOARD" ||
+          v === "OTHER",
+        { message: "Select affiliation" },
+      ),
     affiliationOther: z.string().trim().max(80),
     trustName: z.string().trim().min(2, "Trust / Society name is required"),
     schoolMobile: z.string().trim().regex(MOBILE_DIGITS_REGEX, MOBILE_ERROR),
@@ -85,7 +94,8 @@ const schoolSchema = z
     }
   });
 
-type SchoolFormValues = z.infer<typeof schoolSchema>;
+type SchoolFormValues = z.input<typeof schoolSchema>;
+type SchoolFormOutput = z.output<typeof schoolSchema>;
 
 const STEPS = [
   { id: 1, label: "School details" },
@@ -476,7 +486,7 @@ function SchoolPortalPage() {
     }
   }, [loading, step, students, reg?.status, reg?.id, reg?.locked]);
 
-  const schoolForm = useForm<SchoolFormValues>({
+  const schoolForm = useForm<SchoolFormValues, unknown, SchoolFormOutput>({
     resolver: zodResolver(schoolSchema),
     mode: "onSubmit",
     reValidateMode: "onChange",
@@ -491,7 +501,7 @@ function SchoolPortalPage() {
       country: "India",
       countryOther: "",
       website: "",
-      affiliation: "CBSE",
+      affiliation: "",
       affiliationOther: "",
       trustName: "",
       schoolMobile: "",
@@ -616,11 +626,12 @@ function SchoolPortalPage() {
       countryOther: data.countryOther || "",
       website: data.website || "",
       affiliation:
+        data.affiliation === "CBSE" ||
         data.affiliation === "ICSE" ||
         data.affiliation === "STATE_BOARD" ||
         data.affiliation === "OTHER"
           ? data.affiliation
-          : "CBSE",
+          : "",
       affiliationOther: data.affiliationOther || "",
       trustName: data.trustName || "",
       schoolMobile: data.schoolMobile || "",
@@ -858,7 +869,7 @@ function SchoolPortalPage() {
     void persistDraftStudents(next, { immediate: true });
   }
 
-  async function onSaveStep1(values: SchoolFormValues) {
+  async function onSaveStep1(values: SchoolFormOutput) {
     setError("");
     setSaving(true);
     const res = await saveSchoolStep1(values);
