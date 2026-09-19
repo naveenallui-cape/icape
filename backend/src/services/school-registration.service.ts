@@ -16,6 +16,7 @@ import {
   allocateSchoolCode,
   allocateStudentRegistrationNumbers,
 } from "../lib/registration-codes";
+import { MAX_STUDENTS_PER_REGISTRATION } from "../lib/registration-limits";
 import {
   CURRENT_OLYMPIAD_YEAR,
   OLYMPIAD_YEAR_META,
@@ -448,6 +449,22 @@ export const schoolRegistrationService = {
       throw new AppError("Add at least one student", 400);
     }
 
+    // Single-request full replace, or first estimate before append
+    if (replaceAll && finalize && toSave.length > MAX_STUDENTS_PER_REGISTRATION) {
+      throw new AppError("Too many students for one registration", 400);
+    }
+    if (!replaceAll) {
+      const existingCount = await prisma.registrationStudent.count({
+        where: { schoolRegistrationId: reg.id },
+      });
+      if (existingCount + toSave.length > MAX_STUDENTS_PER_REGISTRATION) {
+        throw new AppError("Too many students for one registration", 400);
+      }
+    } else if (!finalize && toSave.length > MAX_STUDENTS_PER_REGISTRATION) {
+      // First chunk alone should never exceed the cap
+      throw new AppError("Too many students for one registration", 400);
+    }
+
     const existingById = new Map(reg.students.map((s) => [s.id, s]));
     const existingByReg = new Map(
       reg.students.map((s) => [s.registrationNumber, s]),
@@ -566,6 +583,9 @@ export const schoolRegistrationService = {
           ieo: true,
         },
       });
+      if (allStudents.length > MAX_STUDENTS_PER_REGISTRATION) {
+        throw new AppError("Too many students for one registration", 400);
+      }
       if (!draft && allStudents.length === 0) {
         throw new AppError("Add at least one student", 400);
       }
@@ -713,6 +733,9 @@ export const schoolRegistrationService = {
         errors[0] || "No valid student rows found in Excel",
         400,
       );
+    }
+    if (students.length > MAX_STUDENTS_PER_REGISTRATION) {
+      throw new AppError("Too many students to import at once", 400);
     }
 
     return { students, errors };
@@ -926,7 +949,7 @@ export const schoolRegistrationService = {
         olympiadYear: CURRENT_OLYMPIAD_YEAR,
       },
       orderBy: [{ submittedAt: "desc" }, { updatedAt: "desc" }],
-      take: 2_000,
+      take: 10_000,
       select: {
         schoolCode: true,
         schoolName: true,

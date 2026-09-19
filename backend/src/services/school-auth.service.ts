@@ -500,9 +500,9 @@ export const schoolAuthService = {
       incomplete: true,
     });
 
-    // Fetch remaining pages if needed (cap 2000 for marketing export)
+    // Fetch all pages (supports 3k+ schools for marketing follow-up)
     const all = [...data.accounts];
-    const totalPages = Math.min(data.pagination.totalPages, 20);
+    const totalPages = data.pagination.totalPages;
     for (let page = 2; page <= totalPages; page += 1) {
       const next = await this.listAccounts({
         page,
