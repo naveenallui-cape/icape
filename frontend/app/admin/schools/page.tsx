@@ -183,6 +183,7 @@ export default function AdminSchoolsPage() {
   const rows = (schoolsQuery.data?.accounts || []) as AccountRow[];
   const totalPages = schoolsQuery.data?.pagination.totalPages || 1;
   const total = schoolsQuery.data?.pagination.total || 0;
+  const serialOffset = (page - 1) * PAGE_SIZE;
   const totals = schoolsQuery.data?.totals || {
     imo: 0,
     iso: 0,
@@ -242,8 +243,8 @@ export default function AdminSchoolsPage() {
           {(
             [
               { code: "IMO", count: totals.imo },
-              { code: "ISO", count: totals.iso },
               { code: "IEO", count: totals.ieo },
+              { code: "ISO", count: totals.iso },
             ] as const
           ).map((item, index) => (
             <div
@@ -300,6 +301,7 @@ export default function AdminSchoolsPage() {
           <table className="w-full min-w-[860px] text-left text-sm">
             <thead className="bg-brand-stats text-white">
               <tr>
+                <th className="px-3 py-3 font-semibold">S.No.</th>
                 <th className="px-4 py-3 font-semibold">School name</th>
                 <th className="px-3 py-3 font-semibold">School code</th>
                 <th className="px-3 py-3 font-semibold">Contact</th>
@@ -321,6 +323,9 @@ export default function AdminSchoolsPage() {
                     index % 2 === 0 ? "bg-white" : "bg-brand-soft/20",
                   )}
                 >
+                  <td className="px-3 py-3 tabular-nums text-muted">
+                    {serialOffset + index + 1}
+                  </td>
                   <td className="px-4 py-3">
                     <p className="font-semibold text-brand">
                       {row.schoolName || "—"}
@@ -386,13 +391,13 @@ export default function AdminSchoolsPage() {
               ))}
               {!showInitialLoading && rows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-muted">
+                  <td colSpan={11} className="px-4 py-10 text-center text-muted">
                     No schools found.
                   </td>
                 </tr>
               ) : null}
               {showInitialLoading ? (
-                <AdminTableSkeletonRows columns={10} rows={8} />
+                <AdminTableSkeletonRows columns={11} rows={8} />
               ) : null}
             </tbody>
           </table>

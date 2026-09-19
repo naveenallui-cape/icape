@@ -147,6 +147,7 @@ export default function AdminStudentsPage() {
   const rows = (studentsQuery.data?.students || []) as StudentRow[];
   const schools = studentsQuery.data?.filters.schools || [];
   const totalPages = studentsQuery.data?.pagination.totalPages || 1;
+  const serialOffset = (page - 1) * PAGE_SIZE;
   const showInitialLoading = studentsQuery.isPending && !studentsQuery.data;
   const error =
     exportError ||
@@ -180,12 +181,58 @@ export default function AdminStudentsPage() {
 
   const heading = useMemo(() => buildStudentsHeading(applied), [applied]);
   const loading = studentsQuery.isFetching;
+  const totals = studentsQuery.data?.totals || {
+    schools: 0,
+    imo: 0,
+    ieo: 0,
+    iso: 0,
+    total: 0,
+  };
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-brand">{heading.title}</h1>
-        <p className="text-muted">{heading.subtitle}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-brand">{heading.title}</h1>
+          <p className="text-muted">{heading.subtitle}</p>
+        </div>
+        <div
+          aria-label="Schools and olympiad entry totals"
+          className="flex shrink-0 items-stretch overflow-hidden rounded-lg border border-border bg-white"
+        >
+          {(
+            [
+              { code: "Schools", count: totals.schools },
+              { code: "IMO", count: totals.imo },
+              { code: "IEO", count: totals.ieo },
+              { code: "ISO", count: totals.iso },
+            ] as const
+          ).map((item, index) => (
+            <div
+              key={item.code}
+              className={
+                index > 0
+                  ? "border-l border-border px-3.5 py-2 text-center sm:px-4"
+                  : "px-3.5 py-2 text-center sm:px-4"
+              }
+            >
+              <p className="text-[11px] font-semibold tracking-wide text-muted">
+                {item.code}
+              </p>
+              <p className="text-base font-bold tabular-nums leading-tight text-brand">
+                {showInitialLoading ? "—" : item.count}
+              </p>
+            </div>
+          ))}
+          <div className="border-l border-brand/20 bg-brand px-3.5 py-2 text-center sm:px-4">
+            <p className="text-[11px] font-semibold tracking-wide text-white/80">
+              Total
+            </p>
+            <p className="text-base font-bold tabular-nums leading-tight text-white">
+              {showInitialLoading ? "—" : totals.total}
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-3 rounded-2xl border border-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -283,10 +330,11 @@ export default function AdminStudentsPage() {
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead className="bg-brand-stats text-white">
             <tr>
-              <th className="px-3 py-3">School code</th>
-              <th className="px-3 py-3">School name</th>
+              <th className="px-3 py-3">S.No.</th>
               <th className="px-3 py-3">Reg. No.</th>
               <th className="px-3 py-3">Student</th>
+              <th className="px-3 py-3">School code</th>
+              <th className="px-3 py-3">School name</th>
               <th className="px-3 py-3">Grade</th>
               <th className="px-3 py-3">Section</th>
               <th className="px-3 py-3">Olympiads</th>
@@ -294,18 +342,21 @@ export default function AdminStudentsPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {rows.map((row, index) => (
               <tr key={row.id} className="border-t border-border">
+                <td className="px-3 py-3 tabular-nums text-muted">
+                  {serialOffset + index + 1}
+                </td>
+                <td className="px-3 py-3 font-mono text-xs font-medium">
+                  {row.registrationNumber}
+                </td>
+                <td className="px-3 py-3">{row.name}</td>
                 <td className="px-3 py-3 font-mono text-xs font-medium">
                   {row.schoolCode || "—"}
                 </td>
                 <td className="px-3 py-3 font-semibold text-brand">
                   {row.schoolName || "—"}
                 </td>
-                <td className="px-3 py-3 font-mono text-xs font-medium">
-                  {row.registrationNumber}
-                </td>
-                <td className="px-3 py-3">{row.name}</td>
                 <td className="px-3 py-3">{row.grade}</td>
                 <td className="px-3 py-3">{row.section || "—"}</td>
                 <td className="px-3 py-3">
@@ -320,13 +371,13 @@ export default function AdminStudentsPage() {
             ))}
             {!showInitialLoading && rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-10 text-center text-muted">
+                <td colSpan={9} className="px-3 py-10 text-center text-muted">
                   No students found
                 </td>
               </tr>
             ) : null}
             {showInitialLoading ? (
-              <AdminTableSkeletonRows columns={8} rows={10} />
+              <AdminTableSkeletonRows columns={9} rows={10} />
             ) : null}
           </tbody>
         </table>

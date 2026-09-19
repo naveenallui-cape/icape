@@ -217,6 +217,13 @@ export type AdminStudentsResponse = {
   filters: {
     schools: Array<{ schoolCode: string; schoolName: string }>;
   };
+  totals?: {
+    schools: number;
+    imo: number;
+    ieo: number;
+    iso: number;
+    total: number;
+  };
   pagination: {
     page: number;
     limit: number;

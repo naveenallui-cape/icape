@@ -12,12 +12,13 @@ import {
   ChevronRight,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest, getApiUrl, type ApiResponse } from "@/lib/api";
 import { saveStudentsChunked, type RegistrationStudent, MAX_STUDENTS_PER_REGISTRATION } from "@/lib/school-api";
-import { computeRegistrationFee, PAYMENT_METHODS, paymentReferenceField, type PaymentMethod } from "@/lib/payment-details";
+import { computeRegistrationFee, type PaymentMethod } from "@/lib/payment-details";
 import { toTitleCaseInput } from "@/lib/title-case";
 import { cn } from "@/lib/utils";
 import { PaymentFeeSummary } from "@/components/school/payment-fee-summary";
@@ -30,7 +31,7 @@ import {
   namedCountByGrade,
   type StudentGrade,
 } from "@/components/school/grade-switch-buttons";
-import { MOBILE_DIGITS_REGEX, MOBILE_ERROR } from "@/lib/mobile";
+import { MOBILE_DIGITS_REGEX, MOBILE_ERROR, sanitizeMobileDigits } from "@/lib/mobile";
 
 const INITIAL_STUDENT_ROWS = 30;
 
@@ -38,7 +39,7 @@ const STEPS = [
   { id: 1, label: "Account" },
   { id: 2, label: "School details" },
   { id: 3, label: "Students" },
-  { id: 4, label: "Payment" },
+  { id: 4, label: "Confirm" },
 ] as const;
 
 const accountSchema = z.object({
@@ -218,19 +219,19 @@ function resolveResumeStep(
     if (stored === 2 || stored === 3) return stored;
     return 3;
   }
-  // Honor the step the admin was on (Students vs Payment).
+  // Honor the step the admin was on (Students vs Confirm).
   if (stored === 2 || stored === 3 || stored === 4) {
     if (stored === 4 && !studentsOk) return 3;
-    if (stored === 4 && (reg.payment?.utr || (reg.currentStep ?? 0) >= 3)) {
+    if (stored === 4 && (reg.currentStep ?? 0) >= 3) {
       return 4;
     }
     if (stored === 3 || stored === 2) return stored;
   }
-  // Unpaid draft with students: stay on Students — don't auto-open Payment.
-  if (!reg.payment?.utr && !reg.payment?.status) return 3;
+  // Draft with students: stay on Students — don't auto-open Confirm.
+  if (!reg.payment?.status) return 3;
   if (
     studentsOk &&
-    ((reg.currentStep ?? 0) >= 3 || reg.payment?.utr || reg.payment?.status)
+    ((reg.currentStep ?? 0) >= 3 || reg.payment?.status)
   ) {
     return 4;
   }
@@ -434,6 +435,7 @@ async function importAdminStudentsExcel(
       imo: boolean;
       iso: boolean;
       ieo: boolean;
+      importWarning?: string;
     }>;
     errors: string[];
   }>
@@ -466,6 +468,7 @@ async function importAdminStudentsExcel(
         imo: boolean;
         iso: boolean;
         ieo: boolean;
+        importWarning?: string;
       }>;
       errors: string[];
     }>;
@@ -504,15 +507,19 @@ function AdminRegisterSchoolPageInner() {
   const [studentRowErrors, setStudentRowErrors] = useState<Record<number, string>>(
     {},
   );
-  const [utr, setUtr] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
-  const [adminNote, setAdminNote] = useState("");
-  const [approveNow, setApproveNow] = useState(false);
   const [done, setDone] = useState<RegistrationPayload | null>(null);
   const [completedThrough, setCompletedThrough] = useState(0);
   const [draftStatus, setDraftStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
+  const [importStatus, setImportStatus] = useState<
+    "idle" | "importing" | "done" | "error"
+  >("idle");
+  const [importFileName, setImportFileName] = useState("");
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const importFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const stepReadyRef = useRef(false);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastDraftPayloadRef = useRef("");
@@ -626,8 +633,6 @@ function AdminRegisterSchoolPageInner() {
     setStep(1);
     setCompletedThrough(0);
     setStudents([]);
-    setUtr("");
-    setAdminNote("");
     accountForm.reset();
     schoolForm.reset({
       schoolName: "",
@@ -755,20 +760,6 @@ function AdminRegisterSchoolPageInner() {
       })),
     );
 
-    // Only show saved payment details after submit; draft stays blank
-    if (
-      reg.status === "UNDER_REVIEW" ||
-      reg.status === "APPROVED"
-    ) {
-      if (reg.payment?.utr) setUtr(reg.payment.utr);
-      if (reg.payment?.paymentMethod) setPaymentMethod(reg.payment.paymentMethod);
-      if (reg.payment?.adminNote) setAdminNote(reg.payment.adminNote);
-    } else {
-      setUtr("");
-      setPaymentMethod("");
-      setAdminNote("");
-    }
-
     stepReadyRef.current = true;
     const resumeStep = resolveResumeStep(reg, account.id);
     setStep(resumeStep);
@@ -828,12 +819,90 @@ function AdminRegisterSchoolPageInner() {
         name: s.name.trim().toUpperCase(),
         grade: s.grade,
         section: (s.section || "").trim().toUpperCase(),
-        mobile: (s.mobile || "").trim(),
+        mobile: sanitizeMobileDigits(s.mobile),
         imo: Boolean(s.imo),
         iso: Boolean(s.iso),
         ieo: Boolean(s.ieo),
       }));
   }, [students]);
+
+  async function persistDraftStudents(
+    rows: StudentRow[],
+    options?: { immediate?: boolean },
+  ) {
+    if (!accountId || completedThrough < 2) return;
+    const payloadStudents = rows
+      .filter((s) => s.name.trim().length >= 2 && s.grade >= 3 && s.grade <= 10)
+      .map((s) => ({
+        id: s.id,
+        registrationNumber: s.registrationNumber,
+        name: s.name.trim().toUpperCase(),
+        grade: s.grade,
+        section: (s.section || "").trim().toUpperCase(),
+        mobile: sanitizeMobileDigits(s.mobile),
+        imo: Boolean(s.imo),
+        iso: Boolean(s.iso),
+        ieo: Boolean(s.ieo),
+      }));
+    const payload = JSON.stringify(payloadStudents);
+    if (payload === lastDraftPayloadRef.current) return;
+    if (payloadStudents.length > MAX_STUDENTS_PER_REGISTRATION) {
+      setDraftStatus("error");
+      return;
+    }
+
+    const run = async () => {
+      setDraftStatus("saving");
+      const res = await saveStudentsChunked(
+        `/admin/school-registrations/accounts/${accountId}/step/2`,
+        payloadStudents as RegistrationStudent[],
+        { draft: true },
+      );
+      if (!res.success) {
+        setDraftStatus("error");
+        return;
+      }
+      lastDraftPayloadRef.current = payload;
+      setDraftStatus("saved");
+      const saved = res.data;
+      if (!saved) return;
+      setCompletedThrough((prev) => Math.max(prev, 3));
+      setSchoolCode(saved.schoolCode || schoolCode);
+      skipNextDraftRef.current = true;
+      const restored = saved.students.map((s) => normalizeStudent(s));
+      setStudents(
+        ensureStudentsForGrade(
+          withTrailingEmptyRow(restored, activeGrade),
+          activeGrade,
+          emptyStudent,
+          INITIAL_STUDENT_ROWS,
+        ),
+      );
+      lastDraftPayloadRef.current = JSON.stringify(
+        restored.map((s) => ({
+          id: s.id,
+          registrationNumber: s.registrationNumber,
+          name: s.name.trim().toUpperCase(),
+          grade: s.grade,
+          section: (s.section || "").trim().toUpperCase(),
+          mobile: sanitizeMobileDigits(s.mobile),
+          imo: Boolean(s.imo),
+          iso: Boolean(s.iso),
+          ieo: Boolean(s.ieo),
+        })),
+      );
+    };
+
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    if (options?.immediate) {
+      await run();
+      return;
+    }
+    const debounceMs = payloadStudents.length > 400 ? 1200 : 700;
+    draftTimerRef.current = setTimeout(() => {
+      void run();
+    }, debounceMs);
+  }
 
   useEffect(() => {
     if (step !== 3 || !accountId || completedThrough < 2) return;
@@ -845,59 +914,35 @@ function AdminRegisterSchoolPageInner() {
       return;
     }
     if (payload === lastDraftPayloadRef.current) return;
-    if (draftStudents.length === 0) return;
-    if (draftStudents.length > MAX_STUDENTS_PER_REGISTRATION) {
-      setDraftStatus("error");
-      return;
-    }
 
-    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
-    const debounceMs = draftStudents.length > 400 ? 1200 : 700;
-    draftTimerRef.current = setTimeout(() => {
-      void (async () => {
-        setDraftStatus("saving");
-        const res = await saveStudentsChunked(
-          `/admin/school-registrations/accounts/${accountId}/step/2`,
-          draftStudents as RegistrationStudent[],
-          { draft: true },
-        );
-        if (!res.success) {
-          setDraftStatus("error");
-          return;
-        }
-        lastDraftPayloadRef.current = payload;
-        setDraftStatus("saved");
-        const saved = res.data;
-        if (saved) {
-          setCompletedThrough((prev) => Math.max(prev, 3));
-          setSchoolCode(saved.schoolCode || schoolCode);
-          setStudents((prev) => {
-            const merged = mergeStudentCodes(prev, saved.students);
-            lastDraftPayloadRef.current = JSON.stringify(
-              merged
-                .filter((s) => s.name.trim().length >= 2)
-                .map((s) => ({
-                  id: s.id,
-                  registrationNumber: s.registrationNumber,
-                  name: s.name.trim().toUpperCase(),
-                  grade: s.grade,
-                  section: (s.section || "").trim().toUpperCase(),
-                  mobile: (s.mobile || "").trim(),
-                  imo: Boolean(s.imo),
-                  iso: Boolean(s.iso),
-                  ieo: Boolean(s.ieo),
-                })),
-            );
-            return merged;
-          });
-        }
-      })();
-    }, debounceMs);
+    void persistDraftStudents(students);
 
     return () => {
       if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     };
-  }, [draftStudents, step, accountId, completedThrough, schoolCode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftStudents, step, accountId, completedThrough]);
+
+  function removeStudentAt(absoluteIndex: number) {
+    const next = ensureStudentsForGrade(
+      students.filter((_, i) => i !== absoluteIndex),
+      activeGrade,
+      emptyStudent,
+      INITIAL_STUDENT_ROWS,
+    );
+    setStudents(next);
+    setStudentRowErrors((prev) => {
+      if (!prev[absoluteIndex] && Object.keys(prev).length === 0) return prev;
+      const remapped: Record<number, string> = {};
+      for (const [key, message] of Object.entries(prev)) {
+        const idx = Number(key);
+        if (idx === absoluteIndex) continue;
+        remapped[idx > absoluteIndex ? idx - 1 : idx] = message;
+      }
+      return remapped;
+    });
+    void persistDraftStudents(next, { immediate: true });
+  }
 
   function switchGrade(grade: StudentGrade) {
     if (grade === activeGrade) return;
@@ -1057,40 +1102,95 @@ function AdminRegisterSchoolPageInner() {
   }
 
   async function onImportExcel(file: File | null) {
-    if (!file) return;
+    if (importFeedbackTimerRef.current) {
+      clearTimeout(importFeedbackTimerRef.current);
+      importFeedbackTimerRef.current = null;
+    }
+    if (!file) {
+      setImportStatus("idle");
+      setImportFileName("");
+      return;
+    }
     setError("");
+    setImportFileName(file.name);
+    setImportStatus("importing");
     const res = await importAdminStudentsExcel(file);
+    if (importInputRef.current) importInputRef.current.value = "";
     if (!res.success || !res.data) {
-      setError(res.message);
+      setImportStatus("error");
+      setError(
+        `File selected: ${file.name}. ${res.message || "Import failed."}`,
+      );
+      importFeedbackTimerRef.current = setTimeout(() => {
+        setImportStatus("idle");
+        setImportFileName("");
+      }, 6000);
       return;
     }
     if (res.data.students.length > MAX_STUDENTS_PER_REGISTRATION) {
-      setError("Too many students to import at once");
+      setImportStatus("error");
+      setError(
+        `File selected: ${file.name}. Too many students to import at once.`,
+      );
+      importFeedbackTimerRef.current = setTimeout(() => {
+        setImportStatus("idle");
+        setImportFileName("");
+      }, 6000);
       return;
     }
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     skipNextDraftRef.current = true;
-    setStudents(
-      ensureStudentsForGrade(
-        withTrailingEmptyRow(
-          res.data.students.map((s) =>
-            normalizeStudent({
-              ...s,
-              name: (s.name || "").toUpperCase(),
-              section: (s.section || "").toUpperCase(),
-            }),
-          ),
-          activeGrade,
-        ),
-        activeGrade,
-        emptyStudent,
-        INITIAL_STUDENT_ROWS,
-      ),
+    const imported = res.data.students.map((s) =>
+      normalizeStudent({
+        ...s,
+        name: (s.name || "").toUpperCase(),
+        section: (s.section || "").toUpperCase(),
+        mobile: sanitizeMobileDigits(s.mobile),
+      }),
     );
+    const nextRows = ensureStudentsForGrade(
+      withTrailingEmptyRow(imported, activeGrade),
+      activeGrade,
+      emptyStudent,
+      INITIAL_STUDENT_ROWS,
+    );
+    setStudents(nextRows);
+
+    const rowErrors: Record<number, string> = {};
+    res.data.students.forEach((s, i) => {
+      if (s.importWarning) {
+        if (!String(s.name || "").trim() || !isStudentGrade(s.grade)) {
+          rowErrors[i] = "Enter a valid name and grade (3–10)";
+        } else if (!s.imo && !s.iso && !s.ieo) {
+          rowErrors[i] = "Select at least one olympiad";
+        } else {
+          rowErrors[i] = "Fix this row and save";
+        }
+      }
+    });
+    setStudentRowErrors(rowErrors);
+    setImportStatus("done");
+
     if (res.data.errors.length) {
       setError(
-        `Imported with warnings: ${res.data.errors.slice(0, 3).join(" · ")}`,
+        `File imported: ${file.name}. Some rows need fixing — edit them in the table, then save. ${res.data.errors.slice(0, 3).join(" · ")}`,
       );
+    } else {
+      setError("");
     }
+
+    lastDraftPayloadRef.current = "";
+    void persistDraftStudents(nextRows, { immediate: true });
+
+    importFeedbackTimerRef.current = setTimeout(() => {
+      setImportStatus("idle");
+      setImportFileName("");
+      setError((prev) =>
+        prev.startsWith("File imported:") || prev.startsWith("File selected:")
+          ? ""
+          : prev,
+      );
+    }, 5000);
   }
 
   async function onSubmitPayment() {
@@ -1135,20 +1235,10 @@ function AdminRegisterSchoolPageInner() {
           ? incomplete[0]
           : incomplete.join(" and ");
       setError(
-        `${label} ${incomplete.length === 1 ? "is" : "are"} incomplete. Complete ${incomplete.length === 1 ? "this step" : "these steps"} before submitting for verification.`,
+        `${label} ${incomplete.length === 1 ? "is" : "are"} incomplete. Complete ${incomplete.length === 1 ? "this step" : "these steps"} before registering.`,
       );
       goToStep(incomplete[0] === "School details" ? 2 : 3);
       window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-    if (!PAYMENT_METHODS.includes(paymentMethod as PaymentMethod)) {
-      setError("Select payment method");
-      return;
-    }
-    const selectedPaymentMethod = paymentMethod as PaymentMethod;
-    const paymentReference = paymentReferenceField(selectedPaymentMethod);
-    if (!approveNow && utr.trim().length < 6) {
-      setError(`${paymentReference.requiredError} (min 6 characters)`);
       return;
     }
     setSaving(true);
@@ -1157,10 +1247,7 @@ function AdminRegisterSchoolPageInner() {
       {
         method: "PUT",
         body: {
-          paymentMethod: selectedPaymentMethod,
-          utr: utr.trim(),
-          approve: approveNow,
-          adminNote: adminNote.trim() || undefined,
+          approve: true,
         },
       },
     );
@@ -1253,8 +1340,8 @@ function AdminRegisterSchoolPageInner() {
             {accountId ? "Continue school registration" : "Register school"}
           </h1>
           <p className="mt-1 text-sm text-muted">
-            Same flow as the school portal — account, school details, students,
-            then payment. Incomplete work appears under Incomplete
+            Admin direct registration — account, school details, students, then
+            confirm and approve. Incomplete work appears under Incomplete
             registrations.
           </p>
           {accountId ? (
@@ -1398,8 +1485,16 @@ function AdminRegisterSchoolPageInner() {
       </nav>
 
       {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+        <div className="flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="min-w-0 flex-1">{error}</p>
+          <button
+            type="button"
+            className="shrink-0 rounded p-0.5 text-red-600 hover:bg-red-100"
+            aria-label="Dismiss"
+            onClick={() => setError("")}
+          >
+            <X className="size-4" aria-hidden />
+          </button>
         </div>
       ) : null}
 
@@ -1745,7 +1840,7 @@ function AdminRegisterSchoolPageInner() {
                 : draftStatus === "saved"
                   ? `Draft saved · ${draftStudents.length} student${draftStudents.length === 1 ? "" : "s"}`
                   : draftStatus === "error"
-                    ? "Draft save failed — will retry"
+                    ? "Draft save failed"
                     : null}
             </p>
           </div>
@@ -1758,15 +1853,41 @@ function AdminRegisterSchoolPageInner() {
               >
                 Download Excel template
               </a>
-              <label className="inline-flex cursor-pointer rounded-md border border-border px-3 py-2 text-sm font-semibold text-brand hover:bg-brand-soft">
-                Import Excel
+              <label
+                className={cn(
+                  "inline-flex cursor-pointer rounded-md border border-border px-3 py-2 text-sm font-semibold text-brand hover:bg-brand-soft",
+                  importStatus === "importing" && "pointer-events-none opacity-60",
+                )}
+              >
+                {importStatus === "importing" ? "Importing…" : "Import Excel"}
                 <input
+                  ref={importInputRef}
                   type="file"
                   accept=".xlsx,.xls,.csv"
                   className="hidden"
+                  disabled={importStatus === "importing"}
                   onChange={(e) => onImportExcel(e.target.files?.[0] ?? null)}
                 />
               </label>
+              {importFileName ? (
+                <p
+                  className={cn(
+                    "text-sm font-medium",
+                    importStatus === "importing" && "text-muted",
+                    importStatus === "done" && "text-green-700",
+                    importStatus === "error" && "text-red-600",
+                  )}
+                  aria-live="polite"
+                >
+                  {importStatus === "importing"
+                    ? `Reading ${importFileName}…`
+                    : importStatus === "done"
+                      ? `Imported: ${importFileName}`
+                      : importStatus === "error"
+                        ? `Selected: ${importFileName} — not imported`
+                        : importFileName}
+                </p>
+              ) : null}
             </div>
             <GradeSwitchButtons
               activeGrade={activeGrade}
@@ -1779,7 +1900,7 @@ function AdminRegisterSchoolPageInner() {
             <table className="w-full min-w-[920px] border-collapse text-sm">
               <thead className="bg-brand-stats text-white">
                 <tr>
-                  <th className="px-2 py-3 text-center font-semibold">Sr.</th>
+                  <th className="px-2 py-3 text-center font-semibold">S.No.</th>
                   <th className="px-2 py-3 text-center font-semibold">
                     Reg. No.
                   </th>
@@ -1790,17 +1911,15 @@ function AdminRegisterSchoolPageInner() {
                   <th className="w-14 px-1 py-3 text-center font-semibold">
                     Sec
                   </th>
-                  <th className="px-2 py-3 text-center font-semibold">
-                    WhatsApp / Mobile
+                  <th className="w-[7.5rem] px-1 py-3 text-center font-semibold">
+                    Mobile
                   </th>
-                  <th className="px-2 py-3 text-center font-semibold">
-                    English
+                  <th className="px-2 py-3 text-center font-semibold">IMO</th>
+                  <th className="px-2 py-3 text-center font-semibold">IEO</th>
+                  <th className="px-2 py-3 text-center font-semibold">ISO</th>
+                  <th className="w-14 px-2 py-3 text-center font-semibold">
+                    Delete
                   </th>
-                  <th className="px-2 py-3 text-center font-semibold">
-                    Science
-                  </th>
-                  <th className="px-2 py-3 text-center font-semibold">Maths</th>
-                  <th className="px-2 py-3 text-center font-semibold"> </th>
                 </tr>
               </thead>
               <tbody>
@@ -1836,6 +1955,9 @@ function AdminRegisterSchoolPageInner() {
                           className="h-9 w-full uppercase"
                           onChange={(e) => {
                             const next = e.target.value.toUpperCase();
+                            setError("");
+                            setImportStatus("idle");
+                            setImportFileName("");
                             setStudentRowErrors((prev) => {
                               if (!prev[absoluteIndex]) return prev;
                               const copy = { ...prev };
@@ -1888,14 +2010,14 @@ function AdminRegisterSchoolPageInner() {
                           }
                         />
                       </td>
-                      <td className="px-2 py-2 align-middle">
+                      <td className="w-[7.5rem] px-1 py-2 align-middle">
                         <Input
                           type="tel"
                           inputMode="numeric"
                           maxLength={10}
                           value={student.mobile}
-                          placeholder="10-digit mobile"
-                          className="h-9 w-full"
+                          placeholder="Mobile"
+                          className="h-9 w-[7.5rem] max-w-[7.5rem] px-2 text-center tabular-nums"
                           onChange={(e) =>
                             setStudents((prev) =>
                               prev.map((row, i) =>
@@ -1915,9 +2037,9 @@ function AdminRegisterSchoolPageInner() {
                       </td>
                       {(
                         [
-                          ["ieo", "English"],
-                          ["iso", "Science"],
-                          ["imo", "Maths"],
+                          ["imo", "IMO"],
+                          ["ieo", "IEO"],
+                          ["iso", "ISO"],
                         ] as const
                       ).map(([key]) => (
                         <td
@@ -1962,16 +2084,7 @@ function AdminRegisterSchoolPageInner() {
                           type="button"
                           className="inline-flex text-red-600 hover:underline disabled:opacity-40"
                           aria-label="Remove student"
-                          onClick={() =>
-                            setStudents((prev) =>
-                              ensureStudentsForGrade(
-                                prev.filter((_, i) => i !== absoluteIndex),
-                                activeGrade,
-                                emptyStudent,
-                                INITIAL_STUDENT_ROWS,
-                              ),
-                            )
-                          }
+                          onClick={() => removeStudentAt(absoluteIndex)}
                         >
                           <Trash2 className="size-4" aria-hidden />
                         </button>
@@ -2062,7 +2175,7 @@ function AdminRegisterSchoolPageInner() {
               disabled={saving}
               onClick={() => void onSaveStudents()}
             >
-              {saving ? "Saving…" : "Save & continue to payment"}
+              {saving ? "Saving…" : "Save & continue"}
             </Button>
           </div>
         </div>
@@ -2070,70 +2183,15 @@ function AdminRegisterSchoolPageInner() {
 
       {step === 4 ? (
         <div className="space-y-4 rounded-2xl border border-border bg-white p-5">
-          <h2 className="text-lg font-bold text-brand">Payment</h2>
+          <h2 className="text-lg font-bold text-brand">Confirm & approve</h2>
+          <p className="text-sm text-muted">
+            Review the fee summary, then register and approve this school
+            immediately. No payment details are required for admin registration.
+          </p>
           <PaymentFeeSummary
+            variant="admin"
             students={students.filter((s) => s.name.trim())}
           />
-          <Field label="Payment method *">
-            <select
-              value={paymentMethod}
-              className="flex h-10 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-brand outline-none focus:border-brand"
-              onChange={(e) =>
-                setPaymentMethod(e.target.value as PaymentMethod | "")
-              }
-            >
-              <option value="" disabled>
-                Select payment method
-              </option>
-              {PAYMENT_METHODS.map((method) => (
-                <option key={method} value={method}>
-                  {method}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field
-            label={
-              paymentMethod
-                ? approveNow
-                  ? `${paymentReferenceField(paymentMethod).label.replace(" *", "")} (optional)`
-                  : paymentReferenceField(paymentMethod).label
-                : approveNow
-                  ? "Payment reference number (optional)"
-                  : "Payment reference number *"
-            }
-          >
-            <Input
-              value={utr}
-              onChange={(e) => setUtr(e.target.value)}
-              placeholder={
-                paymentMethod
-                  ? paymentReferenceField(paymentMethod).placeholder
-                  : "Select payment method first"
-              }
-            />
-          </Field>
-          <Field label="Admin note (optional)">
-            <Input
-              value={adminNote}
-              onChange={(e) => setAdminNote(e.target.value)}
-              placeholder="e.g. Cash collected at office"
-            />
-          </Field>
-          <label className="flex items-start gap-2 text-sm font-semibold text-brand">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={approveNow}
-              onChange={(e) => setApproveNow(e.target.checked)}
-            />
-            <span>
-              Approve immediately
-              <span className="mt-0.5 block font-normal text-muted">
-                Check to approve now, or leave unchecked for payment verification.
-              </span>
-            </span>
-          </label>
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
@@ -2141,11 +2199,7 @@ function AdminRegisterSchoolPageInner() {
               disabled={saving}
               onClick={() => void onSubmitPayment()}
             >
-              {saving
-                ? "Submitting…"
-                : approveNow
-                  ? "Register & approve"
-                  : "Submit for verification"}
+              {saving ? "Registering…" : "Register & approve"}
             </Button>
           </div>
         </div>

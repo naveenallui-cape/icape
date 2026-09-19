@@ -283,41 +283,6 @@ export function SchoolApprovedStudents() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
-        <p>
-          {loading
-            ? "Loading…"
-            : total === 0
-              ? "No students"
-              : `Showing ${serialOffset + 1}–${serialOffset + rows.length} of ${total}`}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={loading || page <= 1}
-            onClick={() => void load(page - 1)}
-          >
-            <ChevronLeft className="size-4" aria-hidden />
-            Prev
-          </Button>
-          <span className="tabular-nums text-brand">
-            Page {page} / {totalPages}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={loading || page >= totalPages}
-            onClick={() => void load(page + 1)}
-          >
-            Next
-            <ChevronRight className="size-4" aria-hidden />
-          </Button>
-        </div>
-      </div>
-
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       {loading ? (
@@ -363,6 +328,41 @@ export function SchoolApprovedStudents() {
           </table>
         </div>
       )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
+        <p>
+          {loading
+            ? "Loading…"
+            : total === 0
+              ? "No students"
+              : `Showing ${serialOffset + 1}–${serialOffset + rows.length} of ${total}`}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={loading || page <= 1}
+            onClick={() => void load(page - 1)}
+          >
+            <ChevronLeft className="size-4" aria-hidden />
+            Prev
+          </Button>
+          <span className="tabular-nums text-brand">
+            Page {page} / {totalPages}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={loading || page >= totalPages}
+            onClick={() => void load(page + 1)}
+          >
+            Next
+            <ChevronRight className="size-4" aria-hidden />
+          </Button>
+        </div>
+      </div>
     </section>
   );
 }

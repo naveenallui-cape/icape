@@ -18,6 +18,7 @@ export type RegistrationStudent = {
   imo: boolean;
   iso: boolean;
   ieo: boolean;
+  importWarning?: string;
 };
 
 /** Max named students per school registration (admin + school portal). */

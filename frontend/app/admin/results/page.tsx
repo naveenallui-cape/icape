@@ -134,6 +134,7 @@ export default function AdminResultsPage() {
         <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="bg-brand-stats text-white">
             <tr>
+              <th className="px-3 py-3">S.No.</th>
               <th className="px-3 py-3">Reg. No.</th>
               <th className="px-3 py-3">Student</th>
               <th className="px-3 py-3">School</th>
@@ -148,19 +149,22 @@ export default function AdminResultsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-muted">
+                <td colSpan={10} className="px-3 py-8 text-center text-muted">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-muted">
+                <td colSpan={10} className="px-3 py-8 text-center text-muted">
                   No results found
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
+              rows.map((row, index) => (
                 <tr key={row.id} className="border-t border-border">
+                  <td className="px-3 py-3 tabular-nums text-muted">
+                    {(page - 1) * 25 + index + 1}
+                  </td>
                   <td className="px-3 py-3 font-medium">
                     {row.registrationNumber}
                   </td>

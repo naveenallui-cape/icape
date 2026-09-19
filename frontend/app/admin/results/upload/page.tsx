@@ -596,6 +596,7 @@ export default function AdminUploadResultsPage() {
             <table className="w-full min-w-[1100px] text-left text-sm">
               <thead className="bg-brand-soft text-brand">
                 <tr>
+                  <th className="px-2 py-2">S.No.</th>
                   <th className="px-2 py-2">Reg. No.</th>
                   <th className="px-2 py-2">Student</th>
                   <th className="px-2 py-2">School</th>
@@ -614,6 +615,9 @@ export default function AdminUploadResultsPage() {
               <tbody>
                 {manualRows.map((row, index) => (
                   <tr key={row.key} className="border-t border-border align-top">
+                    <td className="px-2 py-2 tabular-nums text-muted">
+                      {index + 1}
+                    </td>
                     <td className="px-1 py-1">
                       <input
                         value={row.registrationNumber}
@@ -1103,10 +1107,10 @@ export default function AdminUploadResultsPage() {
                   <table className="w-full min-w-[1100px] text-left text-sm">
                     <thead className="bg-amber-50 text-brand">
                       <tr>
-                        <th className="px-2 py-2">Row</th>
-                        <th className="px-2 py-2">Issue</th>
+                        <th className="px-2 py-2">S.No.</th>
                         <th className="px-2 py-2">Reg. No.</th>
                         <th className="px-2 py-2">Student</th>
+                        <th className="px-2 py-2">Issue</th>
                         <th className="px-2 py-2">School</th>
                         <th className="px-2 py-2">Place</th>
                         <th className="px-2 py-2">State</th>
@@ -1126,21 +1130,34 @@ export default function AdminUploadResultsPage() {
                             key={`${row.rowNumber}-${row.message}-${index}`}
                             className="border-t border-border align-top"
                           >
-                            <td className="px-2 py-2 text-muted">
-                              {row.rowNumber}
-                              {row.sheet ? (
-                                <span className="mt-0.5 block text-[11px]">
-                                  {row.sheet}
-                                </span>
-                              ) : null}
-                            </td>
-                            <td className="max-w-[180px] px-2 py-2 text-xs text-red-700">
-                              {row.message}
+                            <td className="px-2 py-2 tabular-nums text-muted">
+                              {index + 1}
+                              <span className="mt-0.5 block text-[11px]">
+                                Row {row.rowNumber}
+                                {row.sheet ? ` · ${row.sheet}` : ""}
+                              </span>
                             </td>
                             {(
                               [
                                 "registrationNumber",
                                 "studentName",
+                              ] as const
+                            ).map((field) => (
+                              <td key={field} className="px-1 py-1">
+                                <input
+                                  value={String(row[field] ?? "")}
+                                  onChange={(e) =>
+                                    updateInvalidRow(index, field, e.target.value)
+                                  }
+                                  className="h-8 w-full min-w-[100px] rounded border border-border px-2 text-sm"
+                                />
+                              </td>
+                            ))}
+                            <td className="max-w-[180px] px-2 py-2 text-xs text-red-700">
+                              {row.message}
+                            </td>
+                            {(
+                              [
                                 "schoolName",
                                 "place",
                                 "state",
@@ -1435,7 +1452,7 @@ function SamplePreviewTable({
         <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="bg-brand-stats text-white">
             <tr>
-              <th className="px-3 py-2">#</th>
+              <th className="px-3 py-2">S.No.</th>
               <th className="px-3 py-2">Reg. No.</th>
               <th className="px-3 py-2">Student</th>
               <th className="px-3 py-2">School</th>

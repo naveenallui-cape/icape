@@ -29,6 +29,7 @@ export function RegistrationSummaryPreview({
 }: {
   reg: SchoolRegistration;
   students: Array<{
+    registrationNumber?: string;
     name: string;
     grade: number;
     section: string;
@@ -134,8 +135,9 @@ export function RegistrationSummaryPreview({
             <table className="min-w-full text-left text-sm">
               <thead className="bg-brand-soft/40 text-xs uppercase tracking-wide text-muted">
                 <tr>
-                  <th className="px-3 py-2 font-semibold">#</th>
-                  <th className="px-3 py-2 font-semibold">Name</th>
+                  <th className="px-3 py-2 font-semibold">S.No.</th>
+                  <th className="px-3 py-2 font-semibold">Reg. No.</th>
+                  <th className="px-3 py-2 font-semibold">Student</th>
                   <th className="px-3 py-2 font-semibold">Grade</th>
                   <th className="px-3 py-2 font-semibold">Sec</th>
                   <th className="px-3 py-2 font-semibold">Olympiads</th>
@@ -151,6 +153,9 @@ export function RegistrationSummaryPreview({
                     )}
                   >
                     <td className="px-3 py-2 text-muted">{i + 1}</td>
+                    <td className="px-3 py-2 font-mono text-xs font-medium">
+                      {s.registrationNumber || "—"}
+                    </td>
                     <td className="px-3 py-2 font-semibold text-brand">
                       {s.name}
                     </td>

@@ -38,7 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toTitleCaseInput } from "@/lib/title-case";
 import { LIVE_DATA_REFETCH_MS } from "@/lib/live-refresh";
-import { MOBILE_DIGITS_REGEX, MOBILE_ERROR } from "@/lib/mobile";
+import { MOBILE_DIGITS_REGEX, MOBILE_ERROR, sanitizeMobileDigits } from "@/lib/mobile";
 
 const INITIAL_STUDENT_ROWS = 30;
 
@@ -362,6 +362,14 @@ function SchoolPortalPage() {
   const [draftStatus, setDraftStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
+  const [importStatus, setImportStatus] = useState<
+    "idle" | "importing" | "done" | "error"
+  >("idle");
+  const [importFileName, setImportFileName] = useState("");
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const importFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [studentRowErrors, setStudentRowErrors] = useState<
     Record<number, string>
   >({});
@@ -720,12 +728,95 @@ function SchoolPortalPage() {
         name: s.name.trim().toUpperCase(),
         grade: s.grade,
         section: (s.section || "").trim().toUpperCase(),
-        mobile: (s.mobile || "").trim(),
+        mobile: sanitizeMobileDigits(s.mobile),
         imo: Boolean(s.imo),
         iso: Boolean(s.iso),
         ieo: Boolean(s.ieo),
       }));
   }, [students]);
+
+  async function persistDraftStudents(
+    rows: StudentDraft[],
+    options?: { immediate?: boolean },
+  ) {
+    if (locked) return;
+    const payloadStudents = rows
+      .filter((s) => s.name.trim().length >= 2 && s.grade >= 3 && s.grade <= 10)
+      .map((s) => ({
+        id: s.id,
+        registrationNumber: s.registrationNumber,
+        name: s.name.trim().toUpperCase(),
+        grade: s.grade,
+        section: (s.section || "").trim().toUpperCase(),
+        mobile: sanitizeMobileDigits(s.mobile),
+        imo: Boolean(s.imo),
+        iso: Boolean(s.iso),
+        ieo: Boolean(s.ieo),
+      }));
+    const payload = JSON.stringify(payloadStudents);
+    if (payload === lastDraftPayloadRef.current) return;
+    if (payloadStudents.length > MAX_STUDENTS_PER_REGISTRATION) {
+      setDraftStatus("error");
+      return;
+    }
+
+    const run = async () => {
+      setDraftStatus("saving");
+      const res = await saveSchoolStep2(payloadStudents, { draft: true });
+      if (!res.success) {
+        setDraftStatus("error");
+        return;
+      }
+      lastDraftPayloadRef.current = payload;
+      setDraftStatus("saved");
+      const saved = res.data;
+      if (!saved) return;
+      setReg((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentStep: saved.currentStep,
+              feeExpected: saved.feeExpected,
+              schoolCode: saved.schoolCode,
+            }
+          : saved,
+      );
+      // Use server list so deleted students do not come back
+      skipNextDraftRef.current = true;
+      const restored = saved.students.map((s) => normalizeStudent(s));
+      setStudents(
+        ensureStudentsForGrade(
+          withTrailingEmptyRow(restored, activeGrade),
+          activeGrade,
+          emptyStudent,
+          INITIAL_STUDENT_ROWS,
+        ),
+      );
+      lastDraftPayloadRef.current = JSON.stringify(
+        restored.map((s) => ({
+          id: s.id,
+          registrationNumber: s.registrationNumber,
+          name: s.name.trim().toUpperCase(),
+          grade: s.grade,
+          section: (s.section || "").trim().toUpperCase(),
+          mobile: sanitizeMobileDigits(s.mobile),
+          imo: Boolean(s.imo),
+          iso: Boolean(s.iso),
+          ieo: Boolean(s.ieo),
+        })),
+      );
+    };
+
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    if (options?.immediate) {
+      await run();
+      return;
+    }
+    const debounceMs = payloadStudents.length > 400 ? 1200 : 700;
+    draftTimerRef.current = setTimeout(() => {
+      void run();
+    }, debounceMs);
+  }
 
   useEffect(() => {
     if (step !== 2 || locked) return;
@@ -737,63 +828,35 @@ function SchoolPortalPage() {
       return;
     }
     if (payload === lastDraftPayloadRef.current) return;
-    if (draftStudents.length === 0) return;
-    if (draftStudents.length > MAX_STUDENTS_PER_REGISTRATION) {
-      setDraftStatus("error");
-      return;
-    }
 
-    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
-    const debounceMs = draftStudents.length > 400 ? 1200 : 700;
-    draftTimerRef.current = setTimeout(() => {
-      void (async () => {
-        setDraftStatus("saving");
-        const res = await saveSchoolStep2(draftStudents, { draft: true });
-        if (!res.success) {
-          setDraftStatus("error");
-          return;
-        }
-        lastDraftPayloadRef.current = payload;
-        setDraftStatus("saved");
-        const saved = res.data;
-        if (saved) {
-          setReg((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  currentStep: saved.currentStep,
-                  feeExpected: saved.feeExpected,
-                  schoolCode: saved.schoolCode,
-                }
-              : saved,
-          );
-          setStudents((prev) => {
-            const merged = mergeStudentCodes(prev, saved.students);
-            lastDraftPayloadRef.current = JSON.stringify(
-              merged
-                .filter((s) => s.name.trim().length >= 2)
-                .map((s) => ({
-                  id: s.id,
-                  registrationNumber: s.registrationNumber,
-                  name: s.name.trim().toUpperCase(),
-                  grade: s.grade,
-                  section: (s.section || "").trim().toUpperCase(),
-                  mobile: (s.mobile || "").trim(),
-                  imo: Boolean(s.imo),
-                  iso: Boolean(s.iso),
-                  ieo: Boolean(s.ieo),
-                })),
-            );
-            return merged;
-          });
-        }
-      })();
-    }, debounceMs);
+    void persistDraftStudents(students);
 
     return () => {
       if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftStudents, step, locked]);
+
+  function removeStudentAt(absoluteIndex: number) {
+    const next = ensureStudentsForGrade(
+      students.filter((_, i) => i !== absoluteIndex),
+      activeGrade,
+      emptyStudent,
+      INITIAL_STUDENT_ROWS,
+    );
+    setStudents(next);
+    setStudentRowErrors((prev) => {
+      if (!prev[absoluteIndex] && Object.keys(prev).length === 0) return prev;
+      const remapped: Record<number, string> = {};
+      for (const [key, message] of Object.entries(prev)) {
+        const idx = Number(key);
+        if (idx === absoluteIndex) continue;
+        remapped[idx > absoluteIndex ? idx - 1 : idx] = message;
+      }
+      return remapped;
+    });
+    void persistDraftStudents(next, { immediate: true });
+  }
 
   async function onSaveStep1(values: SchoolFormValues) {
     setError("");
@@ -888,45 +951,106 @@ function SchoolPortalPage() {
   }
 
   async function onImportExcel(file: File | null) {
-    if (!file) return;
+    if (importFeedbackTimerRef.current) {
+      clearTimeout(importFeedbackTimerRef.current);
+      importFeedbackTimerRef.current = null;
+    }
+    if (!file) {
+      setImportStatus("idle");
+      setImportFileName("");
+      return;
+    }
     setError("");
+    setImportFileName(file.name);
+    setImportStatus("importing");
     const res = await importStudentsExcel(file);
+    if (importInputRef.current) importInputRef.current.value = "";
     if (!res.success || !res.data) {
-      setError(res.message);
+      setImportStatus("error");
+      setError(
+        `File selected: ${file.name}. ${res.message || "Import failed."}`,
+      );
+      importFeedbackTimerRef.current = setTimeout(() => {
+        setImportStatus("idle");
+        setImportFileName("");
+      }, 6000);
       return;
     }
     if (res.data.students.length > MAX_STUDENTS_PER_REGISTRATION) {
-      setError("Too many students to import at once");
+      setImportStatus("error");
+      setError(
+        `File selected: ${file.name}. Too many students to import at once.`,
+      );
+      importFeedbackTimerRef.current = setTimeout(() => {
+        setImportStatus("idle");
+        setImportFileName("");
+      }, 6000);
       return;
     }
-    setStudents(
-      ensureStudentsForGrade(
-        withTrailingEmptyRow(
-          res.data.students.map((s) =>
-            normalizeStudent({
-              ...s,
-              name: (s.name || "").toUpperCase(),
-              section: (s.section || "").toUpperCase(),
-            }),
-          ),
-          activeGrade,
-        ),
-        activeGrade,
-        emptyStudent,
-        INITIAL_STUDENT_ROWS,
-      ),
+    const imported = res.data.students.map((s) =>
+      normalizeStudent({
+        ...s,
+        name: (s.name || "").toUpperCase(),
+        section: (s.section || "").toUpperCase(),
+        mobile: sanitizeMobileDigits(s.mobile),
+      }),
     );
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    skipNextDraftRef.current = true;
+    const nextRows = ensureStudentsForGrade(
+      withTrailingEmptyRow(imported, activeGrade),
+      activeGrade,
+      emptyStudent,
+      INITIAL_STUDENT_ROWS,
+    );
+    setStudents(nextRows);
+
+    const rowErrors: Record<number, string> = {};
+    res.data.students.forEach((s, i) => {
+      const warning = (s as { importWarning?: string }).importWarning;
+      if (warning) {
+        if (!String(s.name || "").trim() || !isStudentGrade(s.grade)) {
+          rowErrors[i] = "Enter a valid name and grade (3–10)";
+        } else if (!s.imo && !s.iso && !s.ieo) {
+          rowErrors[i] = "Select at least one olympiad";
+        } else {
+          rowErrors[i] = "Fix this row and save";
+        }
+      }
+    });
+    setStudentRowErrors(rowErrors);
+    setImportStatus("done");
+
     if (res.data.errors.length) {
       setError(
-        `Imported with warnings: ${res.data.errors.slice(0, 3).join(" · ")}`,
+        `File imported: ${file.name}. Some rows need fixing — edit them in the table, then save. ${res.data.errors.slice(0, 3).join(" · ")}`,
       );
+    } else {
+      setError("");
     }
+
+    // Save imported rows once (skip auto-effect race), with sanitized mobiles
+    lastDraftPayloadRef.current = "";
+    void persistDraftStudents(nextRows, { immediate: true });
+
+    importFeedbackTimerRef.current = setTimeout(() => {
+      setImportStatus("idle");
+      setImportFileName("");
+      setError((prev) =>
+        prev.startsWith("File imported:") || prev.startsWith("File selected:")
+          ? ""
+          : prev,
+      );
+    }, 5000);
   }
 
   function updateStudentRow(
     index: number,
     patch: Partial<RegistrationStudent>,
   ) {
+    setError("");
+    setImportStatus("idle");
+    setImportFileName("");
     setStudentRowErrors((prev) => {
       if (!prev[index]) return prev;
       const next = { ...prev };
@@ -1025,7 +1149,7 @@ function SchoolPortalPage() {
       nextErrors.paymentMethod = "Select payment method";
     }
     if (!utr.trim() || utr.trim().length < 6) {
-      nextErrors.utr = paymentReference.requiredError;
+      nextErrors.utr = `${paymentReference.requiredError} (min 6 characters)`;
     }
     if (!proofUrl) {
       nextErrors.proof = "Payment proof is required";
@@ -1033,6 +1157,19 @@ function SchoolPortalPage() {
     if (nextErrors.utr || nextErrors.proof || nextErrors.paymentMethod) {
       setPaymentErrors(nextErrors);
       setError("Fill the highlighted payment fields");
+      const focusField = nextErrors.paymentMethod
+        ? "paymentMethod"
+        : nextErrors.utr
+          ? "utr"
+          : "proof";
+      window.setTimeout(() => {
+        const el = document.querySelector(
+          `[data-payment-field="${focusField}"]`,
+        ) as HTMLElement | null;
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.focus({ preventScroll: true });
+      }, 50);
       return;
     }
     setPaymentErrors({});
@@ -1048,6 +1185,14 @@ function SchoolPortalPage() {
       const message = res.message || "Could not submit payment";
       if (/already used/i.test(message)) {
         setPaymentErrors({ utr: "This reference number is already used" });
+        window.setTimeout(() => {
+          const el = document.querySelector(
+            '[data-payment-field="utr"]',
+          ) as HTMLElement | null;
+          if (!el) return;
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.focus({ preventScroll: true });
+        }, 50);
       }
       setError(message);
       return;
@@ -1485,8 +1630,16 @@ function SchoolPortalPage() {
       </nav>
 
       {error ? (
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {error}
+        <div className="flex items-start justify-between gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <p className="min-w-0 flex-1">{error}</p>
+          <button
+            type="button"
+            className="shrink-0 rounded p-0.5 text-red-600 hover:bg-red-100"
+            aria-label="Dismiss"
+            onClick={() => setError("")}
+          >
+            <X className="size-4" aria-hidden />
+          </button>
         </div>
       ) : null}
 
@@ -1831,7 +1984,7 @@ function SchoolPortalPage() {
                 : draftStatus === "saved"
                   ? `Draft saved · ${draftStudents.length} student${draftStudents.length === 1 ? "" : "s"}`
                   : draftStatus === "error"
-                    ? "Draft save failed — will retry"
+                    ? "Draft save failed"
                     : null}
             </p>
           </div>
@@ -1844,15 +1997,41 @@ function SchoolPortalPage() {
                 >
                   Download Excel template
                 </a>
-                <label className="inline-flex cursor-pointer rounded-md border border-border px-3 py-2 text-sm font-semibold text-brand hover:bg-brand-soft">
-                  Import Excel
+                <label
+                  className={cn(
+                    "inline-flex cursor-pointer rounded-md border border-border px-3 py-2 text-sm font-semibold text-brand hover:bg-brand-soft",
+                    importStatus === "importing" && "pointer-events-none opacity-60",
+                  )}
+                >
+                  {importStatus === "importing" ? "Importing…" : "Import Excel"}
                   <input
+                    ref={importInputRef}
                     type="file"
                     accept=".xlsx,.xls,.csv"
                     className="hidden"
+                    disabled={importStatus === "importing"}
                     onChange={(e) => onImportExcel(e.target.files?.[0] ?? null)}
                   />
                 </label>
+                {importFileName ? (
+                  <p
+                    className={cn(
+                      "text-sm font-medium",
+                      importStatus === "importing" && "text-muted",
+                      importStatus === "done" && "text-green-700",
+                      importStatus === "error" && "text-red-600",
+                    )}
+                    aria-live="polite"
+                  >
+                    {importStatus === "importing"
+                      ? `Reading ${importFileName}…`
+                      : importStatus === "done"
+                        ? `Imported: ${importFileName}`
+                        : importStatus === "error"
+                          ? `Selected: ${importFileName} — not imported`
+                          : importFileName}
+                  </p>
+                ) : null}
               </div>
               <GradeSwitchButtons
                 activeGrade={activeGrade}
@@ -1874,7 +2053,7 @@ function SchoolPortalPage() {
             <table className="w-full min-w-[920px] border-collapse text-sm">
               <thead className="bg-brand-stats text-white">
                 <tr>
-                  <th className="px-2 py-3 text-center font-semibold">Sr.</th>
+                  <th className="px-2 py-3 text-center font-semibold">S.No.</th>
                   <th className="px-2 py-3 text-center font-semibold">
                     Reg. No.
                   </th>
@@ -1885,17 +2064,15 @@ function SchoolPortalPage() {
                   <th className="w-14 px-1 py-3 text-center font-semibold">
                     Sec
                   </th>
-                  <th className="px-2 py-3 text-center font-semibold">
-                    WhatsApp / Mobile
+                  <th className="w-[7.5rem] px-1 py-3 text-center font-semibold">
+                    Mobile
                   </th>
-                  <th className="px-2 py-3 text-center font-semibold">
-                    English
+                  <th className="px-2 py-3 text-center font-semibold">IMO</th>
+                  <th className="px-2 py-3 text-center font-semibold">IEO</th>
+                  <th className="px-2 py-3 text-center font-semibold">ISO</th>
+                  <th className="w-14 px-2 py-3 text-center font-semibold">
+                    Delete
                   </th>
-                  <th className="px-2 py-3 text-center font-semibold">
-                    Science
-                  </th>
-                  <th className="px-2 py-3 text-center font-semibold">Maths</th>
-                  <th className="px-2 py-3 text-center font-semibold"> </th>
                 </tr>
               </thead>
               <tbody>
@@ -1967,15 +2144,15 @@ function SchoolPortalPage() {
                         }
                       />
                     </td>
-                    <td className="px-2 py-2 align-middle">
+                    <td className="w-[7.5rem] px-1 py-2 align-middle">
                       <Input
                         disabled={locked}
                         type="tel"
                         inputMode="numeric"
                         maxLength={10}
                         value={student.mobile}
-                        placeholder="10-digit mobile"
-                        className="h-9 w-full"
+                        placeholder="Mobile"
+                        className="h-9 w-[7.5rem] max-w-[7.5rem] px-2 text-center tabular-nums"
                         onChange={(e) =>
                           updateStudentRow(absoluteIndex, {
                             mobile: e.target.value.replace(/\D/g, "").slice(0, 10),
@@ -1985,9 +2162,9 @@ function SchoolPortalPage() {
                     </td>
                     {(
                       [
-                        ["ieo", "English"],
-                        ["iso", "Science"],
-                        ["imo", "Maths"],
+                        ["imo", "IMO"],
+                        ["ieo", "IEO"],
+                        ["iso", "ISO"],
                       ] as const
                     ).map(([key], olympiadIndex) => (
                       <td
@@ -2032,19 +2209,7 @@ function SchoolPortalPage() {
                           type="button"
                           className="inline-flex text-red-600 hover:underline disabled:opacity-40"
                           aria-label="Remove student"
-                          onClick={() =>
-                            setStudents((prev) => {
-                              const next = prev.filter(
-                                (_, i) => i !== absoluteIndex,
-                              );
-                              return ensureStudentsForGrade(
-                                next,
-                                activeGrade,
-                                emptyStudent,
-                                INITIAL_STUDENT_ROWS,
-                              );
-                            })
-                          }
+                          onClick={() => removeStudentAt(absoluteIndex)}
                         >
                           <Trash2 className="size-4" aria-hidden />
                         </button>
@@ -2204,6 +2369,7 @@ function SchoolPortalPage() {
               <select
                 disabled={locked}
                 value={paymentMethod}
+                data-payment-field="paymentMethod"
                 aria-invalid={Boolean(paymentErrors.paymentMethod)}
                 className={cn(
                   "flex h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-brand outline-none focus:border-brand disabled:cursor-default disabled:border-border disabled:bg-slate-50 disabled:text-brand disabled:opacity-100",
@@ -2238,6 +2404,7 @@ function SchoolPortalPage() {
                 spellCheck={false}
                 name="icape-payment-reference"
                 inputMode="text"
+                data-payment-field="utr"
                 aria-invalid={Boolean(paymentErrors.utr)}
                 className={fieldBorder(Boolean(paymentErrors.utr))}
                 onChange={(e) => {
@@ -2271,6 +2438,7 @@ function SchoolPortalPage() {
                   <Input
                     type="file"
                     accept="image/jpeg,image/png,image/webp,application/pdf"
+                    data-payment-field="proof"
                     aria-invalid={Boolean(paymentErrors.proof)}
                     className={fieldBorder(Boolean(paymentErrors.proof))}
                     onChange={(e) =>
