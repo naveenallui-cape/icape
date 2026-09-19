@@ -155,10 +155,95 @@ export async function saveSchoolStep2(
   students: RegistrationStudent[],
   options?: { draft?: boolean },
 ) {
-  return apiRequest<SchoolRegistration>("/school-registration/step/2", {
-    method: "PUT",
-    body: { students, draft: Boolean(options?.draft) },
-  });
+  return saveStudentsChunked("/school-registration/step/2", students, options);
+}
+
+/** Serialize chunked saves per endpoint so overlapping drafts cannot interleave. */
+const studentSaveChains = new Map<string, Promise<unknown>>();
+
+/** Save students in small HTTP chunks to avoid proxy/DB timeouts on large lists. */
+export async function saveStudentsChunked(
+  path: string,
+  students: RegistrationStudent[],
+  options?: { draft?: boolean },
+): Promise<ApiResponse<SchoolRegistration>> {
+  const prev = studentSaveChains.get(path) ?? Promise.resolve();
+  const job = prev
+    .catch(() => undefined)
+    .then(() => saveStudentsChunkedUnlocked(path, students, options));
+  studentSaveChains.set(
+    path,
+    job.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return job;
+}
+
+async function saveStudentsChunkedUnlocked(
+  path: string,
+  students: RegistrationStudent[],
+  options?: { draft?: boolean },
+): Promise<ApiResponse<SchoolRegistration>> {
+  const draft = Boolean(options?.draft);
+  const CHUNK_SIZE = 300;
+  const named = students.filter((s) => String(s.name ?? "").trim().length >= 2);
+
+  if (named.length === 0) {
+    return apiRequest<SchoolRegistration>(path, {
+      method: "PUT",
+      body: {
+        students: [],
+        draft,
+        replaceAll: true,
+        finalize: true,
+      },
+    });
+  }
+
+  const chunks: RegistrationStudent[][] = [];
+  for (let i = 0; i < named.length; i += CHUNK_SIZE) {
+    chunks.push(named.slice(i, i + CHUNK_SIZE));
+  }
+
+  let last: ApiResponse<SchoolRegistration> = {
+    success: false,
+    message: "Save failed",
+  };
+
+  // Carry registration numbers forward so later chunks keep stable codes
+  const numberByKey = new Map<string, string>();
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i].map((s) => {
+      const key = `${String(s.name).trim().toUpperCase()}|${s.grade}|${String(s.section || "").trim().toUpperCase()}`;
+      const known =
+        (s.registrationNumber && /^\d{8}$/.test(s.registrationNumber)
+          ? s.registrationNumber
+          : null) || numberByKey.get(key);
+      return known ? { ...s, registrationNumber: known } : s;
+    });
+
+    last = await apiRequest<SchoolRegistration>(path, {
+      method: "PUT",
+      body: {
+        students: chunk,
+        draft,
+        replaceAll: i === 0,
+        finalize: i === chunks.length - 1,
+      },
+    });
+
+    if (!last.success || !last.data) return last;
+
+    for (const s of last.data.students) {
+      const key = `${s.name}|${s.grade}|${(s.section || "").toUpperCase()}`;
+      if (s.registrationNumber) numberByKey.set(key, s.registrationNumber);
+    }
+  }
+
+  return last;
 }
 
 export async function saveSchoolStep3(body: {

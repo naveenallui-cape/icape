@@ -70,6 +70,7 @@ type RegistrationDetail = {
 type AccountRow = {
   id: string;
   email: string;
+  password?: string;
   name: string | null;
   createdAt: string;
   registrationCount: number;
@@ -630,6 +631,11 @@ export default function AdminSchoolsPage() {
               <p className="text-xs text-muted">
                 Login email:{" "}
                 <span className="font-semibold text-brand">{selected.email}</span>
+                {" · "}
+                Password:{" "}
+                <span className="font-mono font-semibold text-brand">
+                  {selected.password || "—"}
+                </span>
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button

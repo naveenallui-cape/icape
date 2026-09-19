@@ -27,6 +27,7 @@ import { getApiUrl } from "@/lib/api";
 type IncompleteSchool = {
   id: string;
   email: string;
+  password?: string;
   name: string | null;
   schoolName: string;
   schoolCode: string;
@@ -211,6 +212,7 @@ export default function IncompleteRegistrationsPage() {
                 <th className="px-3 py-2.5 font-semibold">School</th>
                 <th className="px-3 py-2.5 font-semibold">Code</th>
                 <th className="px-3 py-2.5 font-semibold">Login email</th>
+                <th className="px-3 py-2.5 font-semibold">Password</th>
                 <th className="px-3 py-2.5 font-semibold">Contact</th>
                 <th className="px-3 py-2.5 font-semibold">Status</th>
                 <th className="px-3 py-2.5 font-semibold">Progress</th>
@@ -232,6 +234,9 @@ export default function IncompleteRegistrationsPage() {
                     {row.schoolCode || "—"}
                   </td>
                   <td className="px-3 py-3 text-muted">{row.email}</td>
+                  <td className="px-3 py-3 font-mono text-xs font-semibold text-brand">
+                    {row.password || "—"}
+                  </td>
                   <td className="px-3 py-3">
                     <p className="font-medium text-brand">
                       {row.contactName || "—"}

@@ -739,6 +739,7 @@ function SchoolPortalPage() {
     if (draftStudents.length === 0) return;
 
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    const debounceMs = draftStudents.length > 400 ? 1200 : 700;
     draftTimerRef.current = setTimeout(() => {
       void (async () => {
         setDraftStatus("saving");
@@ -782,7 +783,7 @@ function SchoolPortalPage() {
           });
         }
       })();
-    }, 700);
+    }, debounceMs);
 
     return () => {
       if (draftTimerRef.current) clearTimeout(draftTimerRef.current);

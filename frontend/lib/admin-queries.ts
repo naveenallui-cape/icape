@@ -9,6 +9,7 @@ export type AdminAccountsResponse = {
   accounts: Array<{
     id: string;
     email: string;
+    password?: string;
     name: string | null;
     createdAt: string;
     updatedAt?: string;
@@ -82,7 +83,12 @@ export type AdminRegistrationRow = {
   isoCount: number;
   ieoCount: number;
   olympiadTotal: number;
-  schoolAccount: { id: string; email: string; name: string | null };
+  schoolAccount: {
+    id: string;
+    email: string;
+    password?: string;
+    name: string | null;
+  };
   olympiadYear: { label: string; code: string };
   payment: {
     id: string;
@@ -150,7 +156,12 @@ export type AdminRegistrationDetail = {
     adminNote: string | null;
     reviewedAt: string | null;
   } | null;
-  schoolAccount: { id: string; email: string; name: string | null };
+  schoolAccount: {
+    id: string;
+    email: string;
+    password?: string;
+    name: string | null;
+  };
 };
 
 export async function fetchAdminRegistrations(params: {

@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, getApiUrl, type ApiResponse } from "@/lib/api";
+import { saveStudentsChunked, type RegistrationStudent } from "@/lib/school-api";
 import { computeRegistrationFee, PAYMENT_METHODS, paymentReferenceField, type PaymentMethod } from "@/lib/payment-details";
 import { toTitleCaseInput } from "@/lib/title-case";
 import { cn } from "@/lib/utils";
@@ -349,6 +350,142 @@ function createEmptyStudents(count: number, grade = 0): StudentRow[] {
   return Array.from({ length: count }, () => emptyStudent(grade));
 }
 
+function withTrailingEmptyRow(
+  rows: StudentRow[],
+  defaultGrade = 0,
+): StudentRow[] {
+  if (rows.length === 0) return createEmptyStudents(INITIAL_STUDENT_ROWS, defaultGrade);
+  const last = rows[rows.length - 1];
+  if (last.name.trim()) return [...rows, emptyStudent(defaultGrade)];
+  return rows;
+}
+
+function normalizeStudent(s: {
+  id?: string;
+  registrationNumber?: string;
+  name: string;
+  grade: number;
+  section?: string;
+  mobile?: string;
+  imo?: boolean;
+  iso?: boolean;
+  ieo?: boolean;
+}): StudentRow {
+  return {
+    id: s.id,
+    clientKey: s.id ? undefined : nextStudentKey(),
+    registrationNumber: s.registrationNumber,
+    name: s.name || "",
+    grade: s.grade,
+    section: s.section || "",
+    mobile: s.mobile || "",
+    imo: Boolean(s.imo),
+    iso: Boolean(s.iso),
+    ieo: Boolean(s.ieo),
+  };
+}
+
+function mergeStudentCodes(
+  local: StudentRow[],
+  saved: Array<{
+    id?: string;
+    registrationNumber?: string;
+    name: string;
+    grade: number;
+    section?: string;
+    mobile?: string;
+    imo?: boolean;
+    iso?: boolean;
+    ieo?: boolean;
+  }>,
+): StudentRow[] {
+  const queue = saved.map((s) => normalizeStudent(s));
+  return local.map((row) => {
+    if (!row.name.trim()) return row;
+    const idx = queue.findIndex(
+      (s) =>
+        s.name === row.name.trim().toUpperCase() &&
+        s.grade === row.grade &&
+        (s.section || "") === (row.section || "").toUpperCase(),
+    );
+    if (idx < 0) return row;
+    const [matched] = queue.splice(idx, 1);
+    return {
+      ...row,
+      id: matched.id,
+      registrationNumber: matched.registrationNumber,
+    };
+  });
+}
+
+function adminStudentTemplateUrl() {
+  return `${getApiUrl()}/admin/school-registrations/step/2/template`;
+}
+
+async function importAdminStudentsExcel(
+  file: File,
+): Promise<
+  ApiResponse<{
+    students: Array<{
+      name: string;
+      grade: number;
+      section: string;
+      mobile: string;
+      imo: boolean;
+      iso: boolean;
+      ieo: boolean;
+    }>;
+    errors: string[];
+  }>
+> {
+  const apiUrl = getApiUrl();
+  if (!apiUrl) {
+    return {
+      success: false,
+      message: "API URL is not configured",
+      networkError: true,
+    };
+  }
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const response = await fetch(
+      `${apiUrl}/admin/school-registrations/step/2/import`,
+      {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      },
+    );
+    const data = (await response.json()) as ApiResponse<{
+      students: Array<{
+        name: string;
+        grade: number;
+        section: string;
+        mobile: string;
+        imo: boolean;
+        iso: boolean;
+        ieo: boolean;
+      }>;
+      errors: string[];
+    }>;
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || "Import failed",
+        status: response.status,
+      };
+    }
+    return data;
+  } catch {
+    return {
+      success: false,
+      message: "Cannot reach API",
+      networkError: true,
+    };
+  }
+}
+
 function AdminRegisterSchoolPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -373,7 +510,13 @@ function AdminRegisterSchoolPageInner() {
   const [approveNow, setApproveNow] = useState(false);
   const [done, setDone] = useState<RegistrationPayload | null>(null);
   const [completedThrough, setCompletedThrough] = useState(0);
+  const [draftStatus, setDraftStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
   const stepReadyRef = useRef(false);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDraftPayloadRef = useRef("");
+  const skipNextDraftRef = useRef(false);
 
   useEffect(() => {
     if (!accountId || !stepReadyRef.current) return;
@@ -597,6 +740,20 @@ function AdminRegisterSchoolPageInner() {
           )
         : [],
     );
+    skipNextDraftRef.current = true;
+    lastDraftPayloadRef.current = JSON.stringify(
+      named.map((s) => ({
+        id: s.id,
+        registrationNumber: s.registrationNumber,
+        name: s.name.trim().toUpperCase(),
+        grade: s.grade,
+        section: (s.section || "").trim().toUpperCase(),
+        mobile: (s.mobile || "").trim(),
+        imo: Boolean(s.imo),
+        iso: Boolean(s.iso),
+        ieo: Boolean(s.ieo),
+      })),
+    );
 
     // Only show saved payment details after submit; draft stays blank
     if (
@@ -661,6 +818,82 @@ function AdminRegisterSchoolPageInner() {
     [students, activeGrade],
   );
   const gradeCounts = useMemo(() => namedCountByGrade(students), [students]);
+
+  const draftStudents = useMemo(() => {
+    return students
+      .filter((s) => s.name.trim().length >= 2 && s.grade >= 3 && s.grade <= 10)
+      .map((s) => ({
+        id: s.id,
+        registrationNumber: s.registrationNumber,
+        name: s.name.trim().toUpperCase(),
+        grade: s.grade,
+        section: (s.section || "").trim().toUpperCase(),
+        mobile: (s.mobile || "").trim(),
+        imo: Boolean(s.imo),
+        iso: Boolean(s.iso),
+        ieo: Boolean(s.ieo),
+      }));
+  }, [students]);
+
+  useEffect(() => {
+    if (step !== 3 || !accountId || completedThrough < 2) return;
+
+    const payload = JSON.stringify(draftStudents);
+    if (skipNextDraftRef.current) {
+      skipNextDraftRef.current = false;
+      lastDraftPayloadRef.current = payload;
+      return;
+    }
+    if (payload === lastDraftPayloadRef.current) return;
+    if (draftStudents.length === 0) return;
+
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    const debounceMs = draftStudents.length > 400 ? 1200 : 700;
+    draftTimerRef.current = setTimeout(() => {
+      void (async () => {
+        setDraftStatus("saving");
+        const res = await saveStudentsChunked(
+          `/admin/school-registrations/accounts/${accountId}/step/2`,
+          draftStudents as RegistrationStudent[],
+          { draft: true },
+        );
+        if (!res.success) {
+          setDraftStatus("error");
+          return;
+        }
+        lastDraftPayloadRef.current = payload;
+        setDraftStatus("saved");
+        const saved = res.data;
+        if (saved) {
+          setCompletedThrough((prev) => Math.max(prev, 3));
+          setSchoolCode(saved.schoolCode || schoolCode);
+          setStudents((prev) => {
+            const merged = mergeStudentCodes(prev, saved.students);
+            lastDraftPayloadRef.current = JSON.stringify(
+              merged
+                .filter((s) => s.name.trim().length >= 2)
+                .map((s) => ({
+                  id: s.id,
+                  registrationNumber: s.registrationNumber,
+                  name: s.name.trim().toUpperCase(),
+                  grade: s.grade,
+                  section: (s.section || "").trim().toUpperCase(),
+                  mobile: (s.mobile || "").trim(),
+                  imo: Boolean(s.imo),
+                  iso: Boolean(s.iso),
+                  ieo: Boolean(s.ieo),
+                })),
+            );
+            return merged;
+          });
+        }
+      })();
+    }, debounceMs);
+
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, [draftStudents, step, accountId, completedThrough, schoolCode]);
 
   function switchGrade(grade: StudentGrade) {
     if (grade === activeGrade) return;
@@ -776,31 +1009,28 @@ function AdminRegisterSchoolPageInner() {
     }
     setStudentRowErrors({});
     setSaving(true);
-    const res = await apiRequest<RegistrationPayload>(
+    const studentPayload = cleaned.map((s) => ({
+      id: s.id,
+      registrationNumber: s.registrationNumber,
+      name: s.name.trim().toUpperCase(),
+      grade: s.grade,
+      section: (s.section || "").trim().toUpperCase(),
+      mobile: (s.mobile || "").trim(),
+      imo: Boolean(s.imo),
+      iso: Boolean(s.iso),
+      ieo: Boolean(s.ieo),
+    }));
+    const res = await saveStudentsChunked(
       `/admin/school-registrations/accounts/${accountId}/step/2`,
-      {
-        method: "PUT",
-        body: {
-          draft: false,
-          students: cleaned.map((s) => ({
-            id: s.id,
-            registrationNumber: s.registrationNumber,
-            name: s.name.trim().toUpperCase(),
-            grade: s.grade,
-            section: (s.section || "").trim().toUpperCase(),
-            mobile: (s.mobile || "").trim(),
-            imo: Boolean(s.imo),
-            iso: Boolean(s.iso),
-            ieo: Boolean(s.ieo),
-          })),
-        },
-      },
+      studentPayload as RegistrationStudent[],
+      { draft: false },
     );
     setSaving(false);
     if (!res.success || !res.data) {
       setError(res.message);
       return;
     }
+    lastDraftPayloadRef.current = JSON.stringify(studentPayload);
     setStudents(
       res.data.students.map((s) => ({
         id: s.id,
@@ -816,6 +1046,39 @@ function AdminRegisterSchoolPageInner() {
     );
     setCompletedThrough((prev) => Math.max(prev, 3));
     goToStep(4);
+  }
+
+  async function onImportExcel(file: File | null) {
+    if (!file) return;
+    setError("");
+    const res = await importAdminStudentsExcel(file);
+    if (!res.success || !res.data) {
+      setError(res.message);
+      return;
+    }
+    skipNextDraftRef.current = true;
+    setStudents(
+      ensureStudentsForGrade(
+        withTrailingEmptyRow(
+          res.data.students.map((s) =>
+            normalizeStudent({
+              ...s,
+              name: (s.name || "").toUpperCase(),
+              section: (s.section || "").toUpperCase(),
+            }),
+          ),
+          activeGrade,
+        ),
+        activeGrade,
+        emptyStudent,
+        INITIAL_STUDENT_ROWS,
+      ),
+    );
+    if (res.data.errors.length) {
+      setError(
+        `Imported with warnings: ${res.data.errors.slice(0, 3).join(" · ")}`,
+      );
+    }
   }
 
   async function onSubmitPayment() {
@@ -1452,6 +1715,46 @@ function AdminRegisterSchoolPageInner() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-lg font-bold text-brand">Student details</h2>
+              <p className="mt-1 text-sm text-muted">
+                Enter each student — draft saves automatically.
+              </p>
+            </div>
+            <p
+              className={cn(
+                "min-h-5 text-sm font-semibold",
+                draftStatus === "saving" && "text-muted",
+                draftStatus === "saved" && "text-green-700",
+                draftStatus === "error" && "text-red-600",
+              )}
+              aria-live="polite"
+            >
+              {draftStatus === "saving"
+                ? "Saving draft…"
+                : draftStatus === "saved"
+                  ? `Draft saved · ${draftStudents.length} student${draftStudents.length === 1 ? "" : "s"}`
+                  : draftStatus === "error"
+                    ? "Draft save failed — will retry"
+                    : null}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href={adminStudentTemplateUrl()}
+                className="inline-flex rounded-md border border-border px-3 py-2 text-sm font-semibold text-brand hover:bg-brand-soft"
+              >
+                Download Excel template
+              </a>
+              <label className="inline-flex cursor-pointer rounded-md border border-border px-3 py-2 text-sm font-semibold text-brand hover:bg-brand-soft">
+                Import Excel
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={(e) => onImportExcel(e.target.files?.[0] ?? null)}
+                />
+              </label>
             </div>
             <GradeSwitchButtons
               activeGrade={activeGrade}
