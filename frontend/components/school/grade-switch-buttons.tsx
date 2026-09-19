@@ -82,7 +82,7 @@ export function namedCountByGrade(
 export function GradeSwitchButtons({
   activeGrade,
   onChange,
-  counts: _counts,
+  counts,
   disabled,
 }: {
   activeGrade: number;
@@ -98,6 +98,7 @@ export function GradeSwitchButtons({
     >
       {STUDENT_GRADES.map((grade) => {
         const active = activeGrade === grade;
+        const hasStudents = (counts?.[grade] ?? 0) > 0;
         return (
           <button
             key={grade}
@@ -110,7 +111,9 @@ export function GradeSwitchButtons({
               "flex flex-col items-center justify-center rounded-xl border px-2 py-2.5 text-center transition",
               active
                 ? "border-brand bg-brand text-white shadow-sm"
-                : "border-border bg-white text-brand hover:bg-brand-soft/60",
+                : hasStudents
+                  ? "border-brand/30 bg-brand-soft text-brand hover:bg-brand-soft/80"
+                  : "border-border bg-white text-brand hover:bg-brand-soft/60",
               disabled && "cursor-default opacity-70",
             )}
           >
