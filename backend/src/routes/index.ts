@@ -5,6 +5,7 @@ import resultRouter from "./result.routes";
 import schoolAuthRouter from "./school-auth.routes";
 import schoolRegistrationRouter from "./school-registration.routes";
 import adminSchoolRegistrationRouter from "./admin-school-registration.routes";
+import adminDatabaseRouter from "./admin-database.routes";
 
 const apiRouter = Router();
 
@@ -22,5 +23,6 @@ apiRouter.use("/results", resultRouter);
 apiRouter.use("/school-auth", schoolAuthRouter);
 apiRouter.use("/school-registration", schoolRegistrationRouter);
 apiRouter.use("/admin/school-registrations", adminSchoolRegistrationRouter);
+apiRouter.use("/admin/database", adminDatabaseRouter);
 
 export default apiRouter;
