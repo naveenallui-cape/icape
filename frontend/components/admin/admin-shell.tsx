@@ -8,6 +8,7 @@ import {
   BarChart3,
   ClipboardList,
   ClipboardPlus,
+  Database,
   FilePenLine,
   FileUp,
   LayoutDashboard,
@@ -50,6 +51,7 @@ const nav = [
   { href: "/admin/rankings", label: "Rankings", icon: Trophy },
   { href: "/admin/certificates", label: "Certificates", icon: Award },
   { href: "/admin/reports", label: "Student Reports", icon: BarChart3 },
+  { href: "/admin/database", label: "Database", icon: Database },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ] as const;
 
