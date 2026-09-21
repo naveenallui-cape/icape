@@ -1488,7 +1488,7 @@ export const schoolRegistrationService = {
       data.adminNote?.trim() ||
       (approve
         ? concession
-          ? `Admin direct registration (concession ₹${concession}/student)`
+          ? `Admin direct registration (concession ₹${concession}/Olympiad)`
           : "Admin direct registration"
         : data.proofUrl
           ? null

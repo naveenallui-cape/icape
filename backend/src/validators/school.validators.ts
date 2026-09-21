@@ -163,7 +163,7 @@ export const paymentStepSchema = z.object({
   proofUrl: z.string().url("Upload payment proof first"),
   proofPublicId: z.string().optional(),
   /**
-   * Concessional ₹ per student per Olympiad. Omit / null / empty = full rate (150).
+   * Concessional ₹ per Olympiad. Omit / null / empty = full rate (150).
    * Must be a whole rupee from 1–150 when provided.
    */
   concessionFeePerStudent: z.preprocess(
