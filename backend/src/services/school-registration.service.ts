@@ -1434,6 +1434,7 @@ export const schoolRegistrationService = {
       utr: string;
       proofUrl?: string;
       proofPublicId?: string;
+      concessionFeePerStudent?: number | null;
       approve?: boolean;
       adminNote?: string;
     },
@@ -1463,7 +1464,12 @@ export const schoolRegistrationService = {
       );
     }
 
-    const amountExpected = computeRegistrationFee(reg.students);
+    const concession =
+      typeof data.concessionFeePerStudent === "number"
+        ? data.concessionFeePerStudent
+        : null;
+    const feePerSlot = concession ?? PAYMENT_DETAILS.feeAmount;
+    const amountExpected = computeRegistrationFee(reg.students, feePerSlot);
     const approve = data.approve !== false;
     const paymentMethod = data.paymentMethod || "UPI";
     const utr =
@@ -1481,7 +1487,9 @@ export const schoolRegistrationService = {
     const note =
       data.adminNote?.trim() ||
       (approve
-        ? "Admin direct registration"
+        ? concession
+          ? `Admin direct registration (concession ₹${concession}/student)`
+          : "Admin direct registration"
         : data.proofUrl
           ? null
           : "Registered by admin (offline payment)");
@@ -1526,6 +1534,7 @@ export const schoolRegistrationService = {
             : RegistrationStatus.UNDER_REVIEW,
           submittedAt: new Date(),
           rejectionNote: null,
+          concessionFeePerStudent: concession,
         },
       });
     });
