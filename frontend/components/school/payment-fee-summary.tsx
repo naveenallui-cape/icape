@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import {
+  FEE_PER_STUDENT_PER_OLYMPIAD,
   PAYMENT_DETAILS,
   summarizeRegistrationFee,
 } from "@/lib/payment-details";
@@ -42,21 +43,29 @@ export function PaymentFeeSummary({
   students,
   className,
   variant = "school",
+  feePerSlot = FEE_PER_STUDENT_PER_OLYMPIAD,
 }: {
   students: StudentLike[];
   className?: string;
   /** School portal asks to pay; admin registration only shows the fee. */
   variant?: "school" | "admin";
+  /** ₹ per student per Olympiad (full rate 150, or school concession). */
+  feePerSlot?: number;
 }) {
-  const summary = summarizeRegistrationFee(students);
+  const summary = summarizeRegistrationFee(students, feePerSlot);
   const classRows = summarizeByClass(students);
+  const hasConcession = summary.feePerSlot !== FEE_PER_STUDENT_PER_OLYMPIAD;
 
   return (
     <div className={cn("space-y-3", className)}>
       <div className="overflow-hidden rounded-xl border border-border bg-white">
         <div className="border-b border-border bg-brand px-4 py-2.5">
           <p className="text-sm font-bold text-white">Payment summary</p>
-          <p className="text-xs text-white/75">{PAYMENT_DETAILS.feeLabel}</p>
+          <p className="text-xs text-white/75">
+            {hasConcession
+              ? `INR ${summary.feePerSlot} per student per Olympiad (concession)`
+              : PAYMENT_DETAILS.feeLabel}
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[320px] border-collapse text-sm">
@@ -111,7 +120,9 @@ export function PaymentFeeSummary({
                   colSpan={4}
                   className="px-3 py-3 text-left text-sm font-semibold text-brand"
                 >
-                  Total registrations {summary.olympiadSlots} × 150
+                  Total registrations {summary.olympiadSlots} ×{" "}
+                  {summary.feePerSlot}
+                  {hasConcession ? " (concession)" : ""}
                 </td>
                 <td className="px-3 py-3 text-center text-base font-bold tabular-nums text-brand">
                   ₹{summary.totalFee.toLocaleString("en-IN")}

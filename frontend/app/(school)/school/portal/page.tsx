@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Building2, Check, CheckCircle2, ChevronRight, Clock, Plus, QrCode, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PAYMENT_DETAILS, PAYMENT_METHODS, paymentReferenceField, type PaymentMethod } from "@/lib/payment-details";
+import { PAYMENT_DETAILS, PAYMENT_METHODS, paymentReferenceField, FEE_PER_STUDENT_PER_OLYMPIAD, type PaymentMethod } from "@/lib/payment-details";
 import { PaymentFeeSummary } from "@/components/school/payment-fee-summary";
 import { SchoolApprovedStudents } from "@/components/school/school-approved-students";
 import { SchoolResultsPanel } from "@/components/school/school-results-panel";
@@ -383,6 +383,8 @@ function SchoolPortalPage() {
   const [saving, setSaving] = useState(false);
   const [utr, setUtr] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
+  /** Empty = full rate ₹150; otherwise concessional ₹ per student per Olympiad */
+  const [concessionFeeInput, setConcessionFeeInput] = useState("");
   const [proofUrl, setProofUrl] = useState("");
   const [proofPublicId, setProofPublicId] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -406,6 +408,7 @@ function SchoolPortalPage() {
     paymentMethod?: string;
     utr?: string;
     proof?: string;
+    concessionFee?: string;
   }>({});
   const skipNextDraftRef = useRef(true);
   const lastDraftPayloadRef = useRef("");
@@ -690,10 +693,20 @@ function SchoolPortalPage() {
       setProofUrl("");
       setProofPublicId("");
       setPaymentErrors({});
+      setConcessionFeeInput(
+        data.concessionFeePerStudent != null && data.concessionFeePerStudent > 0
+          ? String(data.concessionFeePerStudent)
+          : "",
+      );
     } else {
       setUtr(data.payment?.utr || "");
       setPaymentMethod(data.payment?.paymentMethod || "");
       setProofUrl(data.payment?.proofUrl || "");
+      setConcessionFeeInput(
+        data.concessionFeePerStudent != null && data.concessionFeePerStudent > 0
+          ? String(data.concessionFeePerStudent)
+          : "",
+      );
     }
 
     if (!options?.syncStep) return;
@@ -704,17 +717,29 @@ function SchoolPortalPage() {
     writeStoredPortalStep(data.id, nextStep);
   }
 
+  const concessionFeePerStudent = useMemo(() => {
+    const raw = concessionFeeInput.trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1 || n > FEE_PER_STUDENT_PER_OLYMPIAD) {
+      return null;
+    }
+    return n;
+  }, [concessionFeeInput]);
+
+  const feePerSlot =
+    concessionFeePerStudent ?? FEE_PER_STUDENT_PER_OLYMPIAD;
+
   const feeExpected = useMemo(() => {
     return students
       .filter((s) => s.name.trim())
       .reduce((sum, s) => {
         return (
           sum +
-          ((s.imo ? 1 : 0) + (s.iso ? 1 : 0) + (s.ieo ? 1 : 0)) *
-            PAYMENT_DETAILS.feeAmount
+          ((s.imo ? 1 : 0) + (s.iso ? 1 : 0) + (s.ieo ? 1 : 0)) * feePerSlot
         );
       }, 0);
-  }, [students]);
+  }, [students, feePerSlot]);
 
   const locked = Boolean(reg?.locked);
   const paymentReference = useMemo(
@@ -1183,6 +1208,7 @@ function SchoolPortalPage() {
       paymentMethod?: string;
       utr?: string;
       proof?: string;
+      concessionFee?: string;
     } = {};
     if (!PAYMENT_METHODS.includes(paymentMethod as PaymentMethod)) {
       nextErrors.paymentMethod = "Select payment method";
@@ -1193,14 +1219,32 @@ function SchoolPortalPage() {
     if (!proofUrl) {
       nextErrors.proof = "Payment proof is required";
     }
-    if (nextErrors.utr || nextErrors.proof || nextErrors.paymentMethod) {
+    const concessionRaw = concessionFeeInput.trim();
+    if (concessionRaw) {
+      const n = Number(concessionRaw);
+      if (
+        !Number.isInteger(n) ||
+        n < 1 ||
+        n > FEE_PER_STUDENT_PER_OLYMPIAD
+      ) {
+        nextErrors.concessionFee = `Enter a whole amount from ₹1 to ₹${FEE_PER_STUDENT_PER_OLYMPIAD}`;
+      }
+    }
+    if (
+      nextErrors.utr ||
+      nextErrors.proof ||
+      nextErrors.paymentMethod ||
+      nextErrors.concessionFee
+    ) {
       setPaymentErrors(nextErrors);
       setError("Fill the highlighted payment fields");
-      const focusField = nextErrors.paymentMethod
-        ? "paymentMethod"
-        : nextErrors.utr
-          ? "utr"
-          : "proof";
+      const focusField = nextErrors.concessionFee
+        ? "concessionFee"
+        : nextErrors.paymentMethod
+          ? "paymentMethod"
+          : nextErrors.utr
+            ? "utr"
+            : "proof";
       window.setTimeout(() => {
         const el = document.querySelector(
           `[data-payment-field="${focusField}"]`,
@@ -1218,6 +1262,9 @@ function SchoolPortalPage() {
       utr: utr.trim(),
       proofUrl,
       proofPublicId: proofPublicId || undefined,
+      concessionFeePerStudent: concessionRaw
+        ? Number(concessionRaw)
+        : null,
     });
     setSaving(false);
     if (!res.success || !res.data) {
@@ -2381,7 +2428,64 @@ function SchoolPortalPage() {
         <div className="space-y-5 rounded-2xl border border-border bg-surface p-5 sm:p-6">
           <PaymentFeeSummary
             students={students.filter((s) => s.name.trim())}
+            feePerSlot={feePerSlot}
           />
+
+          {!locked ? (
+            <div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <label
+                  htmlFor="concession-fee-per-student"
+                  className={cn(
+                    "shrink-0 text-sm font-semibold",
+                    paymentErrors.concessionFee ? "text-red-600" : "text-brand",
+                  )}
+                >
+                  Concession fee per student (₹)
+                </label>
+                <Input
+                  id="concession-fee-per-student"
+                  disabled={locked}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
+                  value={concessionFeeInput}
+                  data-payment-field="concessionFee"
+                  aria-invalid={Boolean(paymentErrors.concessionFee)}
+                  className={cn(
+                    "w-24",
+                    fieldBorder(Boolean(paymentErrors.concessionFee)),
+                  )}
+                  onChange={(e) => {
+                    setConcessionFeeInput(e.target.value.replace(/[^\d]/g, ""));
+                    setPaymentErrors((prev) => ({
+                      ...prev,
+                      concessionFee: undefined,
+                    }));
+                  }}
+                />
+                <p className="text-xs text-muted">
+                  Enter the approved discounted fee. Leave blank for ₹
+                  {FEE_PER_STUDENT_PER_OLYMPIAD}.
+                </p>
+              </div>
+              {paymentErrors.concessionFee ? (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  {paymentErrors.concessionFee}
+                </p>
+              ) : null}
+            </div>
+          ) : concessionFeePerStudent != null ? (
+            <p className="rounded-xl border border-border bg-white px-4 py-3 text-sm text-brand">
+              Concession applied:{" "}
+              <span className="font-bold">₹{concessionFeePerStudent}</span> per
+              student per Olympiad · Final{" "}
+              <span className="font-bold">
+                ₹{feeExpected.toLocaleString("en-IN")}
+              </span>
+            </p>
+          ) : null}
 
           <div className="grid gap-4 lg:grid-cols-2">
             <article className="rounded-xl border border-accent/40 bg-background p-4">

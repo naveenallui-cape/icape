@@ -48,8 +48,9 @@ export const PAYMENT_DETAILS = {
 
 export function computeRegistrationFee(
   students: Array<{ imo: boolean; iso: boolean; ieo: boolean }>,
+  feePerSlot: number = FEE_PER_STUDENT_PER_OLYMPIAD,
 ) {
-  return summarizeRegistrationFee(students).totalFee;
+  return summarizeRegistrationFee(students, feePerSlot).totalFee;
 }
 
 export function summarizeRegistrationFee(
@@ -59,6 +60,7 @@ export function summarizeRegistrationFee(
     iso: boolean;
     ieo: boolean;
   }>,
+  feePerSlot: number = FEE_PER_STUDENT_PER_OLYMPIAD,
 ) {
   const named = students.filter((s) =>
     s.name === undefined ? true : Boolean(s.name.trim()),
@@ -72,14 +74,18 @@ export function summarizeRegistrationFee(
     if (s.ieo) ieoCount += 1;
   }
   const olympiadSlots = imoCount + isoCount + ieoCount;
-  const totalFee = olympiadSlots * FEE_PER_STUDENT_PER_OLYMPIAD;
+  const rate =
+    Number.isFinite(feePerSlot) && feePerSlot > 0
+      ? feePerSlot
+      : FEE_PER_STUDENT_PER_OLYMPIAD;
+  const totalFee = olympiadSlots * rate;
   return {
     studentCount: named.length,
     imoCount,
     isoCount,
     ieoCount,
     olympiadSlots,
-    feePerSlot: FEE_PER_STUDENT_PER_OLYMPIAD,
+    feePerSlot: rate,
     totalFee,
   };
 }

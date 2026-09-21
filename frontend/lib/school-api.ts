@@ -52,11 +52,13 @@ export type SchoolRegistration = {
   phone: string;
   inchargeEmail: string;
   gradeCounts: Record<string, number>;
+  concessionFeePerStudent?: number | null;
   rejectionNote: string | null;
   submittedAt: string | null;
   olympiadYear: { label: string; code: string };
   students: RegistrationStudent[];
   feeExpected: number;
+  feePerSlot?: number;
   payment: {
     id: string;
     amountExpected: number;
@@ -262,6 +264,7 @@ export async function saveSchoolStep3(body: {
   utr: string;
   proofUrl: string;
   proofPublicId?: string;
+  concessionFeePerStudent?: number | null;
 }) {
   return apiRequest<SchoolRegistration>("/school-registration/step/3", {
     method: "PUT",

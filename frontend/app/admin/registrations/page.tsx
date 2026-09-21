@@ -501,8 +501,8 @@ function VerificationDialog({
               ) : null}
               {isPending ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                  Waiting for admin verification. Check amount, reference, and
-                  proof before approving.
+                  Waiting for admin verification. Check amount, fee per student
+                  (concession if any), reference, and proof before approving.
                 </div>
               ) : null}
 
@@ -511,6 +511,19 @@ function VerificationDialog({
                   label="Amount"
                   value={formatMoney(selected.payment?.amountExpected)}
                   emphasize
+                />
+                <PaymentFact
+                  label="Fee per student"
+                  value={
+                    selected.concessionFeePerStudent != null &&
+                    selected.concessionFeePerStudent > 0
+                      ? `₹${selected.concessionFeePerStudent} (concession)`
+                      : "₹150 (standard)"
+                  }
+                  emphasize={
+                    selected.concessionFeePerStudent != null &&
+                    selected.concessionFeePerStudent > 0
+                  }
                 />
                 <PaymentFact label="Method" value={paymentMethod} />
                 <PaymentFact
@@ -528,8 +541,14 @@ function VerificationDialog({
                   value={String(selected.olympiadTotal)}
                 />
                 <PaymentFact
-                  label="Expected fee"
-                  value={formatMoney(selected.feeExpected)}
+                  label="Fee calculation"
+                  value={`${selected.olympiadTotal} × ₹${
+                    selected.concessionFeePerStudent != null &&
+                    selected.concessionFeePerStudent > 0
+                      ? selected.concessionFeePerStudent
+                      : 150
+                  }`}
+                  className="col-span-2"
                 />
                 <PaymentFact
                   label="Submitted"

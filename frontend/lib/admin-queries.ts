@@ -141,6 +141,7 @@ export type AdminRegistrationDetail = {
   rejectionNote: string | null;
   submittedAt: string | null;
   feeExpected: number;
+  concessionFeePerStudent?: number | null;
   studentCount: number;
   imoCount: number;
   isoCount: number;

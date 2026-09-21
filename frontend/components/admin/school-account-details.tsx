@@ -47,6 +47,7 @@ export type SchoolAccountRegistrationDetail = {
     utr: string;
     amountExpected: string | number;
   } | null;
+  concessionFeePerStudent?: number | null;
 };
 
 export type SchoolAccountDetail = {
@@ -307,6 +308,15 @@ export function SchoolAccountDetailsView({
               <DetailItem
                 label="Amount"
                 value={`INR ${Number(reg.payment.amountExpected).toLocaleString("en-IN")}`}
+              />
+              <DetailItem
+                label="Fee per student"
+                value={
+                  reg.concessionFeePerStudent != null &&
+                  reg.concessionFeePerStudent > 0
+                    ? `INR ${reg.concessionFeePerStudent} (concession)`
+                    : "INR 150 (standard)"
+                }
               />
             </DetailSection>
           ) : null}
