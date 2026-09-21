@@ -235,6 +235,8 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
     schools.draft + schools.underReview + schools.approved + schools.rejected ||
     1;
   const olympiadMax = Math.max(students.imo, students.iso, students.ieo, 1);
+  const totalOlympiads =
+    students.imoApproved + students.isoApproved + students.ieoApproved;
   const needsAttention = payments.awaitingReview > 0 || schools.rejected > 0;
 
   return (
@@ -404,17 +406,23 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
               className="bg-accent"
             />
           </div>
-          <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
+          <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl bg-slate-50 px-3 py-2">
-              <p className="text-xs font-semibold text-muted">Named students</p>
+              <p className="text-xs font-semibold text-muted">Total schools</p>
               <p className="mt-0.5 text-lg font-bold text-brand">
-                {students.totalNamed.toLocaleString("en-IN")}
+                {schools.approved.toLocaleString("en-IN")}
               </p>
             </div>
             <div className="rounded-xl bg-slate-50 px-3 py-2">
-              <p className="text-xs font-semibold text-muted">In approved schools</p>
+              <p className="text-xs font-semibold text-muted">Total students</p>
               <p className="mt-0.5 text-lg font-bold text-brand">
                 {students.approved.toLocaleString("en-IN")}
+              </p>
+            </div>
+            <div className="rounded-xl bg-slate-50 px-3 py-2">
+              <p className="text-xs font-semibold text-muted">Total olympiads</p>
+              <p className="mt-0.5 text-lg font-bold text-brand">
+                {totalOlympiads.toLocaleString("en-IN")}
               </p>
             </div>
             <div className="rounded-xl bg-slate-50 px-3 py-2">
