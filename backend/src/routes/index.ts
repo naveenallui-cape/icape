@@ -8,6 +8,14 @@ import adminSchoolRegistrationRouter from "./admin-school-registration.routes";
 
 const apiRouter = Router();
 
+apiRouter.get("/", (_req, res) => {
+  res.json({
+    success: true,
+    message: "i-CAPE API",
+    data: { health: "/api/health" },
+  });
+});
+
 apiRouter.use("/health", healthRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/results", resultRouter);

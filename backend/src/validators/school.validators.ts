@@ -192,7 +192,10 @@ export const adminCreateSchoolAccountSchema = z.object({
 
 export const adminPaymentStepSchema = z
   .object({
-    paymentMethod: paymentMethodSchema.optional(),
+    paymentMethod: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      paymentMethodSchema.optional(),
+    ),
     utr: z.string().trim().optional().default(""),
     proofUrl: z.string().url().optional(),
     proofPublicId: z.string().optional(),
