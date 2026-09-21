@@ -162,6 +162,25 @@ export const paymentStepSchema = z.object({
   utr: z.string().trim().min(6, "Enter payment reference number"),
   proofUrl: z.string().url("Upload payment proof first"),
   proofPublicId: z.string().optional(),
+  /**
+   * Concessional ₹ per student per Olympiad. Omit / null / empty = full rate (150).
+   * Must be a whole rupee from 1–150 when provided.
+   */
+  concessionFeePerStudent: z.preprocess(
+    (value) => {
+      if (value === "" || value === undefined || value === null) return null;
+      if (typeof value === "string" && value.trim() === "") return null;
+      const n = typeof value === "number" ? value : Number(value);
+      return Number.isFinite(n) ? n : value;
+    },
+    z
+      .number()
+      .int("Enter a whole number")
+      .min(1, "Concession fee must be at least ₹1")
+      .max(150, "Concession fee cannot exceed ₹150")
+      .nullable()
+      .optional(),
+  ),
 });
 
 export const verifyPaymentSchema = z

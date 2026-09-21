@@ -238,6 +238,7 @@ export const schoolAuthService = {
             imoCount: true,
             isoCount: true,
             ieoCount: true,
+            concessionFeePerStudent: true,
             payment: {
               select: {
                 status: true,

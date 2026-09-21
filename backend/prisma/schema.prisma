@@ -279,6 +279,8 @@ model SchoolRegistration {
   imoCount        Int                @default(0)
   isoCount        Int                @default(0)
   ieoCount        Int                @default(0)
+  /// Optional concessional fee per student per Olympiad (₹). Null = full rate (150).
+  concessionFeePerStudent Int?
   rejectionNote   String?
   submittedAt     DateTime?
   createdAt       DateTime           @default(now())

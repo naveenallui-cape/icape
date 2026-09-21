@@ -19,9 +19,11 @@ export const PAYMENT_DETAILS = {
 
 export function computeRegistrationFee(
   students: Array<{ imo: boolean; iso: boolean; ieo: boolean }>,
+  feePerSlot: number = FEE_PER_STUDENT_PER_OLYMPIAD,
 ) {
   const olympiadSlots = students.reduce((sum, s) => {
     return sum + (s.imo ? 1 : 0) + (s.iso ? 1 : 0) + (s.ieo ? 1 : 0);
   }, 0);
-  return olympiadSlots * FEE_PER_STUDENT_PER_OLYMPIAD;
+  const rate = Number.isFinite(feePerSlot) ? feePerSlot : FEE_PER_STUDENT_PER_OLYMPIAD;
+  return olympiadSlots * rate;
 }

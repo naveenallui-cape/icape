@@ -133,10 +133,15 @@ function serializeRegistration(
     reg.isoCount ?? students.filter((s) => s.iso).length;
   const ieoCount =
     reg.ieoCount ?? students.filter((s) => s.ieo).length;
+  const feePerSlot =
+    typeof reg.concessionFeePerStudent === "number" &&
+    reg.concessionFeePerStudent > 0
+      ? reg.concessionFeePerStudent
+      : PAYMENT_DETAILS.feeAmount;
   const fee =
     students.length > 0
-      ? computeRegistrationFee(students)
-      : (imoCount + isoCount + ieoCount) * PAYMENT_DETAILS.feeAmount;
+      ? computeRegistrationFee(students, feePerSlot)
+      : (imoCount + isoCount + ieoCount) * feePerSlot;
   return {
     id: reg.id,
     status: reg.status,
@@ -165,6 +170,7 @@ function serializeRegistration(
     phone: reg.phone,
     inchargeEmail: reg.inchargeEmail,
     gradeCounts: parseGradeCounts(reg.gradeCounts),
+    concessionFeePerStudent: reg.concessionFeePerStudent ?? null,
     rejectionNote: reg.rejectionNote,
     submittedAt: reg.submittedAt,
     olympiadYear: OLYMPIAD_YEAR_META,
@@ -175,6 +181,7 @@ function serializeRegistration(
     ieoCount,
     olympiadTotal: imoCount + isoCount + ieoCount,
     feeExpected: fee,
+    feePerSlot,
     // Rejected schools must re-enter payment — never send old UTR/proof to the school portal
     payment:
       reg.status === RegistrationStatus.REJECTED || !reg.payment
@@ -816,6 +823,7 @@ export const schoolRegistrationService = {
       utr: string;
       proofUrl: string;
       proofPublicId?: string;
+      concessionFeePerStudent?: number | null;
     },
   ) {
     const year = CURRENT_OLYMPIAD_YEAR;
@@ -845,7 +853,12 @@ export const schoolRegistrationService = {
 
     await assertPaymentReferenceAvailable(data.utr, reg.id);
 
-    const amountExpected = computeRegistrationFee(reg.students);
+    const concession =
+      typeof data.concessionFeePerStudent === "number"
+        ? data.concessionFeePerStudent
+        : null;
+    const feePerSlot = concession ?? PAYMENT_DETAILS.feeAmount;
+    const amountExpected = computeRegistrationFee(reg.students, feePerSlot);
 
     await prisma.$transaction(async (tx) => {
       await tx.registrationPayment.upsert({
@@ -878,6 +891,7 @@ export const schoolRegistrationService = {
           status: RegistrationStatus.UNDER_REVIEW,
           submittedAt: new Date(),
           rejectionNote: null,
+          concessionFeePerStudent: concession,
         },
       });
     });
@@ -949,6 +963,7 @@ export const schoolRegistrationService = {
       imoCount: true,
       isoCount: true,
       ieoCount: true,
+      concessionFeePerStudent: true,
       schoolAccount: { select: { id: true, email: true, password: true, name: true } },
       olympiadYear: true,
       payment: {
