@@ -52,6 +52,14 @@ app.use(cookieParser());
 // Intentionally NO global rate limit — admin must not be throttled.
 // Public result routes apply their own limiter in result.routes.ts.
 
+app.get(["/api", "/api/"], (_req, res) => {
+  res.json({
+    success: true,
+    message: "i-CAPE API",
+    data: { health: "/api/health" },
+  });
+});
+
 // Canonical mount
 app.use("/api", apiRouter);
 // Fallback when NEXT_PUBLIC_API_URL omits /api (common production misconfig)
