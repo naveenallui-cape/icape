@@ -33,7 +33,7 @@ export const testimonials: Testimonial[] = [
   },
   {
     quote:
-      "The zone categorization and recognition for toppers motivated our children. i-CAPE feels professional and school-friendly.",
+      "Recognition for toppers motivated our children. i-CAPE feels professional and school-friendly.",
     name: "Sri Venkateswara Rao",
     role: "Principal",
     school: "St. Joseph's English Medium School",

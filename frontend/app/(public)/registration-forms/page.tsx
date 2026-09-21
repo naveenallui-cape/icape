@@ -24,7 +24,7 @@ const registerPoints = [
   "Download both the School Registration Form and the Student Registration Form from this page.",
   "Fill in all school details on the school form carefully.",
   "Fill student details clearly for every participant on the student form (name, class, olympiad choices).",
-  "Pay the registration fee of INR 150 per student per Olympiad and keep the payment proof.",
+  "Pay the registration fee of INR 150 per Olympiad and keep the payment proof.",
   "Send the filled school form, student form(s), and payment proof to i-CAPE on WhatsApp.",
 ] as const;
 

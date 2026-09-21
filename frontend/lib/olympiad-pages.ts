@@ -30,7 +30,7 @@ const sharedOverviewBase = {
   examLevel: "School / National olympiad level",
   application: "Through the respective school (no individual self-registration)",
   examMode: "Offline (OMR-based)",
-  fee: "INR 150 per student per Olympiad",
+  fee: "INR 150 per Olympiad",
   frequency: "Once a year (Olympiad Year based)",
   languages: "English",
   duration:
@@ -80,7 +80,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
     howToParticipate: [
       "Schools download the School and Student Registration Forms from the i-CAPE website.",
       "Complete school and student details carefully, including olympiad choices (IMO / ISO / IEO).",
-      "Remit INR 150 per student per Olympiad and keep the payment proof.",
+      "Remit INR 150 per Olympiad and keep the payment proof.",
       "Submit filled forms and payment proof to i-CAPE on WhatsApp (+91 80745 63902) on or before 30th September 2026.",
     ],
     examDatesNote:
@@ -139,7 +139,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
     howToParticipate: [
       "Schools download the School and Student Registration Forms from the i-CAPE website.",
       "Complete school and student details carefully, including olympiad choices (IMO / ISO / IEO).",
-      "Remit INR 150 per student per Olympiad and keep the payment proof.",
+      "Remit INR 150 per Olympiad and keep the payment proof.",
       "Submit filled forms and payment proof to i-CAPE on WhatsApp (+91 80745 63902) on or before 30th September 2026.",
     ],
     examDatesNote:
@@ -198,7 +198,7 @@ export const olympiadPages: Record<OlympiadPageId, OlympiadPageContent> = {
     howToParticipate: [
       "Schools download the School and Student Registration Forms from the i-CAPE website.",
       "Complete school and student details carefully, including olympiad choices (IMO / ISO / IEO).",
-      "Remit INR 150 per student per Olympiad and keep the payment proof.",
+      "Remit INR 150 per Olympiad and keep the payment proof.",
       "Submit filled forms and payment proof to i-CAPE on WhatsApp (+91 80745 63902) on or before 30th September 2026.",
     ],
     examDatesNote:

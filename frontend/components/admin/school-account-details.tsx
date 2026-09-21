@@ -84,20 +84,36 @@ function statusClass(status: string | null) {
   }
 }
 
+function displayValue(value?: string | number | null) {
+  if (value === null || value === undefined || value === "") return "—";
+  return String(value);
+}
+
+/** Longer values take more columns so they wrap cleanly without cropping. */
+function spanForValue(text: string) {
+  const len = text.length;
+  if (text === "—" || len <= 18) return "col-span-1";
+  if (len <= 36) return "sm:col-span-2";
+  return "sm:col-span-2 lg:col-span-3";
+}
+
 function DetailItem({
   label,
   value,
+  className,
 }: {
   label: string;
   value?: string | number | null;
+  className?: string;
 }) {
+  const text = displayValue(value);
   return (
-    <div className="min-w-0">
+    <div className={cn("min-w-0", spanForValue(text), className)}>
       <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">
         {label}
       </dt>
-      <dd className="mt-1 truncate text-[15px] font-semibold leading-snug text-brand">
-        {value === null || value === undefined || value === "" ? "—" : value}
+      <dd className="mt-1 break-words text-[15px] font-semibold leading-snug text-brand [overflow-wrap:anywhere]">
+        {text}
       </dd>
     </div>
   );
@@ -113,14 +129,14 @@ function DetailSection({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-border/80 bg-white">
+    <section className="rounded-xl border border-border/80 bg-white">
       <div className="flex items-center gap-2.5 border-b border-border/70 bg-brand-soft/40 px-3.5 py-2">
         <span className="inline-flex size-7 items-center justify-center rounded-md bg-brand text-accent">
           <Icon className="size-4" aria-hidden />
         </span>
         <h3 className="text-sm font-bold text-brand">{title}</h3>
       </div>
-      <dl className="grid gap-x-5 gap-y-3 p-3.5 sm:grid-cols-2 lg:grid-cols-3">
+      <dl className="grid grid-cols-1 gap-x-5 gap-y-3 p-3.5 sm:grid-cols-2 lg:grid-cols-3">
         {children}
       </dl>
     </section>
@@ -159,14 +175,16 @@ export function SchoolAccountDetailsView({
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
               School profile
             </p>
-            <h1 className="mt-1 truncate font-serif text-[1.375rem] font-semibold tracking-tight sm:text-[1.65rem]">
+            <h1 className="mt-1 break-words font-serif text-[1.375rem] font-semibold tracking-tight sm:text-[1.65rem]">
               {account.schoolName || account.name || "School account"}
             </h1>
-            <p className="mt-2 flex items-center gap-1.5 text-sm text-white/75">
-              <MapPin className="size-4 shrink-0" aria-hidden />
-              {[account.city, account.district, account.state]
-                .filter(Boolean)
-                .join(", ") || "Location not added"}
+            <p className="mt-2 flex items-start gap-1.5 text-sm text-white/75">
+              <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span className="break-words">
+                {[account.city, account.district, account.state]
+                  .filter(Boolean)
+                  .join(", ") || "Location not added"}
+              </span>
             </p>
           </div>
           <div className="flex flex-wrap items-stretch gap-2">
@@ -310,7 +328,7 @@ export function SchoolAccountDetailsView({
                 value={`INR ${Number(reg.payment.amountExpected).toLocaleString("en-IN")}`}
               />
               <DetailItem
-                label="Fee per student"
+                label="Fee per Olympiad"
                 value={
                   reg.concessionFeePerStudent != null &&
                   reg.concessionFeePerStudent > 0

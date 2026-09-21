@@ -2358,7 +2358,7 @@ function AdminRegisterSchoolPageInner() {
                   concessionFeeError ? "text-red-600" : "text-brand",
                 )}
               >
-                Concession fee per student (₹)
+                Concession fee per Olympiad (₹)
               </label>
               <Input
                 id="admin-concession-fee"

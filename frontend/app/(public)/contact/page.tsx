@@ -62,7 +62,7 @@ const helpLinks = [
   },
   {
     title: "Registration fee",
-    description: "INR 150 per student per Olympiad — QR & bank details.",
+    description: "INR 150 per Olympiad — QR & bank details.",
     href: "/registration-fee",
     icon: IndianRupee,
   },

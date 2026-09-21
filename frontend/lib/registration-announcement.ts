@@ -2,7 +2,7 @@ export const REGISTRATION_DEADLINE_LABEL = "30th September 2026";
 /** Inclusive last calendar day for registration (local timezone). */
 export const REGISTRATION_DEADLINE_ISO = "2026-09-30";
 export const OLYMPIAD_YEAR_LABEL = "2026-2027";
-export const REGISTRATION_FEE_LABEL = "INR 150 per student per Olympiad";
+export const REGISTRATION_FEE_LABEL = "INR 150 per Olympiad";
 export const WHATSAPP_NUMBER = "+91 80745 63902";
 /** Digits only, country code included (no +) — for WhatsApp app deep links */
 export const WHATSAPP_E164 = "918074563902";

@@ -49,7 +49,7 @@ export function PaymentFeeSummary({
   className?: string;
   /** School portal asks to pay; admin registration only shows the fee. */
   variant?: "school" | "admin";
-  /** ₹ per student per Olympiad (full rate 150, or school concession). */
+  /** ₹ per Olympiad enrollment (full rate 150, or concession). */
   feePerSlot?: number;
 }) {
   const summary = summarizeRegistrationFee(students, feePerSlot);
@@ -63,7 +63,7 @@ export function PaymentFeeSummary({
           <p className="text-sm font-bold text-white">Payment summary</p>
           <p className="text-xs text-white/75">
             {hasConcession
-              ? `INR ${summary.feePerSlot} per student per Olympiad (concession)`
+              ? `INR ${summary.feePerSlot} per Olympiad (concession)`
               : PAYMENT_DETAILS.feeLabel}
           </p>
         </div>

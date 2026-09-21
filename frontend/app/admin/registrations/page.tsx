@@ -501,7 +501,7 @@ function VerificationDialog({
               ) : null}
               {isPending ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                  Waiting for admin verification. Check amount, fee per student
+                  Waiting for admin verification. Check amount, fee per Olympiad
                   (concession if any), reference, and proof before approving.
                 </div>
               ) : null}
@@ -513,7 +513,7 @@ function VerificationDialog({
                   emphasize
                 />
                 <PaymentFact
-                  label="Fee per student"
+                  label="Fee per Olympiad"
                   value={
                     selected.concessionFeePerStudent != null &&
                     selected.concessionFeePerStudent > 0

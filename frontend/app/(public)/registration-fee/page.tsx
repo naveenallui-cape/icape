@@ -96,6 +96,12 @@ export default function RegistrationFeePage() {
                 className="h-auto w-full"
               />
             </div>
+            <p className="mt-4 text-sm leading-relaxed text-muted">
+              Pay to{" "}
+              <span className="font-semibold text-brand">
+                {PAYMENT_DETAILS.bank.accountName}
+              </span>
+            </p>
           </article>
 
           <article className="rounded-xl border border-accent/50 bg-background p-6">
@@ -110,6 +116,12 @@ export default function RegistrationFeePage() {
             </div>
 
             <dl className="space-y-3 text-base">
+              <div className="flex flex-col gap-1 border-b border-border pb-2 sm:flex-row sm:justify-between sm:gap-3">
+                <dt className="shrink-0 text-muted">Account name</dt>
+                <dd className="break-words text-left font-semibold text-brand sm:text-right">
+                  {PAYMENT_DETAILS.bank.accountName}
+                </dd>
+              </div>
               <div className="flex flex-wrap justify-between gap-2 border-b border-border pb-2">
                 <dt className="text-muted">Bank</dt>
                 <dd className="font-semibold text-brand">

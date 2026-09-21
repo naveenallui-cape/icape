@@ -383,7 +383,7 @@ function SchoolPortalPage() {
   const [saving, setSaving] = useState(false);
   const [utr, setUtr] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
-  /** Empty = full rate ₹150; otherwise concessional ₹ per student per Olympiad */
+  /** Empty = full rate ₹150; otherwise concessional ₹ per Olympiad */
   const [concessionFeeInput, setConcessionFeeInput] = useState("");
   const [proofUrl, setProofUrl] = useState("");
   const [proofPublicId, setProofPublicId] = useState("");
@@ -2441,7 +2441,7 @@ function SchoolPortalPage() {
                     paymentErrors.concessionFee ? "text-red-600" : "text-brand",
                   )}
                 >
-                  Concession fee per student (₹)
+                  Concession fee per Olympiad (₹)
                 </label>
                 <Input
                   id="concession-fee-per-student"
@@ -2480,7 +2480,7 @@ function SchoolPortalPage() {
             <p className="rounded-xl border border-border bg-white px-4 py-3 text-sm text-brand">
               Concession applied:{" "}
               <span className="font-bold">₹{concessionFeePerStudent}</span> per
-              student per Olympiad · Final{" "}
+              Olympiad · Final{" "}
               <span className="font-bold">
                 ₹{feeExpected.toLocaleString("en-IN")}
               </span>
@@ -2502,6 +2502,12 @@ function SchoolPortalPage() {
                   className="h-auto w-full"
                 />
               </div>
+              <p className="mt-3 text-xs leading-relaxed text-muted">
+                Pay to{" "}
+                <span className="font-semibold text-brand">
+                  {PAYMENT_DETAILS.bank.accountName}
+                </span>
+              </p>
             </article>
             <article className="rounded-xl border border-accent/40 bg-background p-4">
               <div className="mb-3 flex items-center gap-2">
@@ -2509,6 +2515,12 @@ function SchoolPortalPage() {
                 <h3 className="font-bold text-brand">Bank transfer</h3>
               </div>
               <dl className="space-y-2 text-sm">
+                <div className="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-3">
+                  <dt className="shrink-0 text-muted">Account name</dt>
+                  <dd className="break-words text-left font-semibold text-brand sm:text-right">
+                    {PAYMENT_DETAILS.bank.accountName}
+                  </dd>
+                </div>
                 <div className="flex justify-between gap-2">
                   <dt className="text-muted">Bank</dt>
                   <dd className="font-semibold text-brand">

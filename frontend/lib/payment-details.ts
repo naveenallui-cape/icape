@@ -34,10 +34,12 @@ export function paymentReferenceField(method: PaymentMethod) {
 }
 
 export const PAYMENT_DETAILS = {
-  feeLabel: "INR 150 per student per Olympiad",
+  feeLabel: "INR 150 per Olympiad",
   feeAmount: FEE_PER_STUDENT_PER_OLYMPIAD,
   qrPath: "/brand/payment-qr.png",
   bank: {
+    accountName:
+      "INNOVATIVE CENTRE FOR ASSESSMENT AND PROGRESSIVE EDUCATION PVT LTD",
     name: "IDFC FIRST BANK",
     ifsc: "IDFB0080243",
     accountType: "Current",

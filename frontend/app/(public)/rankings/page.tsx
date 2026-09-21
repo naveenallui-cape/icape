@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   Award,
   CheckCircle2,
-  MapPinned,
   Medal,
   MessagesSquare,
   Trophy,
@@ -11,19 +10,14 @@ import { PageShell } from "@/components/public/page-shell";
 
 const qualificationCriteria = [
   {
-    title: "Top 5% class-wise",
+    title: "Top 10% class-wise",
     detail:
-      "Top 5% of students, class-wise, who appear for the 1st level exam. In case of a tie of marks, priority will be given to marks scored in different sections to determine ranks.",
-  },
-  {
-    title: "Zone toppers",
-    detail:
-      "From each Zone — top 25 rank holders from each class.",
+      "Top 10% of students, class-wise, who appear for the 1st level exam. In case of a tie of marks, priority will be given to marks scored in different sections to determine ranks.",
   },
   {
     title: "School class topper",
     detail:
-      "Class topper from each participating school where at least 10 students from a class appear in the exam and the topper scores 50% qualifying marks.",
+      "Class topper from each participating school where at least 10 students from a class appear in the exam and the topper scores 60% qualifying marks.",
   },
 ] as const;
 
@@ -41,12 +35,6 @@ const singleLevelTieBreakers = [
 ] as const;
 
 const relatedLinks = [
-  {
-    href: "/zones",
-    title: "Update Zone",
-    description: "View zone / state categorization for ranking purposes.",
-    icon: MapPinned,
-  },
   {
     href: "/rewards",
     title: "Awards & Recognitions",
@@ -197,7 +185,7 @@ export default function RankingsPage() {
             Related information
           </h2>
           <div className="mt-2 h-0.5 w-14 bg-accent" aria-hidden />
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {relatedLinks.map((item) => {
               const Icon = item.icon;
               return (

@@ -86,7 +86,7 @@ export const homeCards: HomeCard[] = [
   },
   {
     title: "REGISTRATION FEE",
-    description: "INR 150 per student per Olympiad — payment details inside",
+    description: "INR 150 per Olympiad — payment details inside",
     href: "/registration-fee",
     image:
       "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&h=500&fit=crop&q=80",
@@ -113,20 +113,11 @@ export const homeCards: HomeCard[] = [
   {
     title: "RANKINGS / 2ND LEVEL QUALIFICATION",
     description:
-      "Students fulfilling either of the following 3 criteria will qualify for 2nd...",
+      "Students fulfilling either of the following 2 criteria will qualify for 2nd...",
     href: "/rankings",
     image:
       "https://images.unsplash.com/photo-1578269174936-2709b6aeb913?w=800&h=500&fit=crop&q=80",
     imageAlt: "Winners podium representing rankings and qualification",
-  },
-  {
-    title: "ZONE/STATE CATEGORIZATION",
-    description:
-      "All States and Union Territories in India and all International countries...",
-    href: "/zones",
-    image:
-      "https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&h=500&fit=crop&q=80",
-    imageAlt: "World map for zone and state categorization",
   },
   {
     title: "MODEL PAPERS & PREVIOUS PAPERS",
