@@ -195,17 +195,36 @@ function mergeStudentCodes(
   local: StudentDraft[],
   saved: RegistrationStudent[],
 ): StudentDraft[] {
-  const queue = saved.map((s) => normalizeStudent(s));
+  const queue = saved.map((s) => ({
+    id: s.id,
+    registrationNumber: s.registrationNumber,
+    name: (s.name || "").trim().toUpperCase(),
+    grade: s.grade,
+    section: (s.section || "").trim().toUpperCase(),
+  }));
   return local.map((row) => {
-    if (!row.name.trim()) return row;
-    const idx = queue.findIndex(
-      (s) =>
-        s.name === row.name.trim().toUpperCase() &&
-        s.grade === row.grade &&
-        (s.section || "") === (row.section || "").toUpperCase(),
-    );
+    let idx = -1;
+    if (row.id) {
+      idx = queue.findIndex((s) => s.id === row.id);
+    }
+    if (idx < 0 && row.name.trim()) {
+      const name = row.name.trim().toUpperCase();
+      const section = (row.section || "").trim().toUpperCase();
+      idx = queue.findIndex(
+        (s) =>
+          s.name === name &&
+          s.grade === row.grade &&
+          (s.section || "") === section,
+      );
+    }
     if (idx < 0) return row;
     const [matched] = queue.splice(idx, 1);
+    if (
+      row.id === matched.id &&
+      row.registrationNumber === matched.registrationNumber
+    ) {
+      return row;
+    }
     return {
       ...row,
       id: matched.id,
@@ -489,7 +508,7 @@ function SchoolPortalPage() {
   const schoolForm = useForm<SchoolFormValues, unknown, SchoolFormOutput>({
     resolver: zodResolver(schoolSchema),
     mode: "onSubmit",
-    reValidateMode: "onChange",
+    reValidateMode: "onBlur",
     defaultValues: {
       schoolCode: "",
       schoolName: "",
@@ -792,22 +811,22 @@ function SchoolPortalPage() {
             }
           : saved,
       );
-      // Use server list so deleted students do not come back
+      // Keep local rows/focus stable — only patch ids / reg numbers from server.
       skipNextDraftRef.current = true;
-      const restored = saved.students.map((s) => normalizeStudent(s));
-      setStudents(
-        ensureStudentsForGrade(
-          withTrailingEmptyRow(restored, activeGrade),
+      setStudents((prev) => {
+        const merged = mergeStudentCodes(prev, saved.students);
+        return ensureStudentsForGrade(
+          merged,
           activeGrade,
           emptyStudent,
           INITIAL_STUDENT_ROWS,
-        ),
-      );
+        );
+      });
       lastDraftPayloadRef.current = JSON.stringify(
-        restored.map((s) => ({
+        saved.students.map((s) => ({
           id: s.id,
           registrationNumber: s.registrationNumber,
-          name: s.name.trim().toUpperCase(),
+          name: (s.name || "").trim().toUpperCase(),
           grade: s.grade,
           section: (s.section || "").trim().toUpperCase(),
           mobile: sanitizeMobileDigits(s.mobile),
@@ -1071,9 +1090,18 @@ function SchoolPortalPage() {
     setStudents((prev) => {
       const next = prev.map((s, i) =>
         i === index
-          ? { ...s, ...patch, grade: isStudentGrade(s.grade) ? s.grade : activeGrade }
+          ? {
+              ...s,
+              ...patch,
+              grade: isStudentGrade(s.grade) ? s.grade : activeGrade,
+            }
           : s,
       );
+      const ofGrade = next.filter((s) => s.grade === activeGrade);
+      const needsEnsure =
+        ofGrade.length < INITIAL_STUDENT_ROWS ||
+        Boolean(ofGrade[ofGrade.length - 1]?.name.trim());
+      if (!needsEnsure) return next;
       return ensureStudentsForGrade(
         next,
         activeGrade,
@@ -1260,10 +1288,23 @@ function SchoolPortalPage() {
     return (e: ChangeEvent<HTMLInputElement>) => {
       const next = toTitleCaseInput(e.target.value);
       e.target.value = next;
+      // Do not validate on each keystroke — that paints fields red mid-entry
+      // (e.g. school name needs 2+ chars). Errors show on submit / blur only.
       schoolForm.setValue(key, next as never, {
         shouldDirty: true,
-        shouldValidate: true,
+        shouldValidate: false,
       });
+      if (schoolForm.formState.errors[key]) {
+        schoolForm.clearErrors(key);
+      }
+    };
+  }
+
+  function clearFieldErrorOnChange(key: keyof SchoolFormValues) {
+    return () => {
+      if (schoolForm.formState.errors[key]) {
+        schoolForm.clearErrors(key);
+      }
     };
   }
 
@@ -1741,7 +1782,9 @@ function SchoolPortalPage() {
                   disabled={locked}
                   aria-invalid={Boolean(fieldErr("pincode"))}
                   className={fieldBorder(Boolean(fieldErr("pincode")))}
-                  {...schoolForm.register("pincode")}
+                  {...schoolForm.register("pincode", {
+                    onChange: clearFieldErrorOnChange("pincode"),
+                  })}
                 />
               </Field>
               <Field label="Country *" error={fieldErr("country")}>
@@ -1794,7 +1837,9 @@ function SchoolPortalPage() {
                   placeholder="www."
                   aria-invalid={Boolean(fieldErr("website"))}
                   className={fieldBorder(Boolean(fieldErr("website")))}
-                  {...schoolForm.register("website")}
+                  {...schoolForm.register("website", {
+                    onChange: clearFieldErrorOnChange("website"),
+                  })}
                 />
               </Field>
               <Field
@@ -1861,7 +1906,9 @@ function SchoolPortalPage() {
                   placeholder="10-digit mobile"
                   aria-invalid={Boolean(fieldErr("schoolMobile"))}
                   className={fieldBorder(Boolean(fieldErr("schoolMobile")))}
-                  {...schoolForm.register("schoolMobile")}
+                  {...schoolForm.register("schoolMobile", {
+                    onChange: clearFieldErrorOnChange("schoolMobile"),
+                  })}
                 />
               </Field>
               <Field label="School e-mail *" error={fieldErr("email")}>
@@ -1869,7 +1916,9 @@ function SchoolPortalPage() {
                   disabled={locked}
                   aria-invalid={Boolean(fieldErr("email"))}
                   className={fieldBorder(Boolean(fieldErr("email")))}
-                  {...schoolForm.register("email")}
+                  {...schoolForm.register("email", {
+                    onChange: clearFieldErrorOnChange("email"),
+                  })}
                 />
               </Field>
               <Field label="STD code" error={fieldErr("stdCode")}>
@@ -1877,7 +1926,9 @@ function SchoolPortalPage() {
                   disabled={locked}
                   aria-invalid={Boolean(fieldErr("stdCode"))}
                   className={fieldBorder(Boolean(fieldErr("stdCode")))}
-                  {...schoolForm.register("stdCode")}
+                  {...schoolForm.register("stdCode", {
+                    onChange: clearFieldErrorOnChange("stdCode"),
+                  })}
                 />
               </Field>
               <Field label="Landline no." error={fieldErr("landline")}>
@@ -1885,7 +1936,9 @@ function SchoolPortalPage() {
                   disabled={locked}
                   aria-invalid={Boolean(fieldErr("landline"))}
                   className={fieldBorder(Boolean(fieldErr("landline")))}
-                  {...schoolForm.register("landline")}
+                  {...schoolForm.register("landline", {
+                    onChange: clearFieldErrorOnChange("landline"),
+                  })}
                 />
               </Field>
             </div>
@@ -1913,7 +1966,9 @@ function SchoolPortalPage() {
                   placeholder="10-digit mobile"
                   aria-invalid={Boolean(fieldErr("principalMobile"))}
                   className={fieldBorder(Boolean(fieldErr("principalMobile")))}
-                  {...schoolForm.register("principalMobile")}
+                  {...schoolForm.register("principalMobile", {
+                    onChange: clearFieldErrorOnChange("principalMobile"),
+                  })}
                 />
               </Field>
               <Field label="E-mail *" error={fieldErr("principalEmail")}>
@@ -1921,7 +1976,9 @@ function SchoolPortalPage() {
                   disabled={locked}
                   aria-invalid={Boolean(fieldErr("principalEmail"))}
                   className={fieldBorder(Boolean(fieldErr("principalEmail")))}
-                  {...schoolForm.register("principalEmail")}
+                  {...schoolForm.register("principalEmail", {
+                    onChange: clearFieldErrorOnChange("principalEmail"),
+                  })}
                 />
               </Field>
             </div>
@@ -1951,7 +2008,9 @@ function SchoolPortalPage() {
                   placeholder="10-digit mobile"
                   aria-invalid={Boolean(fieldErr("phone"))}
                   className={fieldBorder(Boolean(fieldErr("phone")))}
-                  {...schoolForm.register("phone")}
+                  {...schoolForm.register("phone", {
+                    onChange: clearFieldErrorOnChange("phone"),
+                  })}
                 />
               </Field>
               <Field label="E-mail *" error={fieldErr("inchargeEmail")}>
@@ -1959,7 +2018,9 @@ function SchoolPortalPage() {
                   disabled={locked}
                   aria-invalid={Boolean(fieldErr("inchargeEmail"))}
                   className={fieldBorder(Boolean(fieldErr("inchargeEmail")))}
-                  {...schoolForm.register("inchargeEmail")}
+                  {...schoolForm.register("inchargeEmail", {
+                    onChange: clearFieldErrorOnChange("inchargeEmail"),
+                  })}
                 />
               </Field>
             </div>

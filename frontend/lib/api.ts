@@ -78,7 +78,7 @@ export async function apiRequest<T = unknown>(
     return {
       success: false,
       message:
-        "Cannot reach API. Is the backend running on port 5001?",
+        "Cannot reach the API. Check your connection and try again.",
       networkError: true,
     };
   }

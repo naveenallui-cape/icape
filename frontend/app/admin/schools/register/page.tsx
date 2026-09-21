@@ -410,17 +410,36 @@ function mergeStudentCodes(
     ieo?: boolean;
   }>,
 ): StudentRow[] {
-  const queue = saved.map((s) => normalizeStudent(s));
+  const queue = saved.map((s) => ({
+    id: s.id,
+    registrationNumber: s.registrationNumber,
+    name: (s.name || "").trim().toUpperCase(),
+    grade: s.grade,
+    section: (s.section || "").trim().toUpperCase(),
+  }));
   return local.map((row) => {
-    if (!row.name.trim()) return row;
-    const idx = queue.findIndex(
-      (s) =>
-        s.name === row.name.trim().toUpperCase() &&
-        s.grade === row.grade &&
-        (s.section || "") === (row.section || "").toUpperCase(),
-    );
+    let idx = -1;
+    if (row.id) {
+      idx = queue.findIndex((s) => s.id === row.id);
+    }
+    if (idx < 0 && row.name.trim()) {
+      const name = row.name.trim().toUpperCase();
+      const section = (row.section || "").trim().toUpperCase();
+      idx = queue.findIndex(
+        (s) =>
+          s.name === name &&
+          s.grade === row.grade &&
+          (s.section || "") === section,
+      );
+    }
     if (idx < 0) return row;
     const [matched] = queue.splice(idx, 1);
+    if (
+      row.id === matched.id &&
+      row.registrationNumber === matched.registrationNumber
+    ) {
+      return row;
+    }
     return {
       ...row,
       id: matched.id,
@@ -566,11 +585,15 @@ function AdminRegisterSchoolPageInner() {
 
   const accountForm = useForm<AccountFormValues>({
     resolver: zodResolver(accountSchema),
+    mode: "onSubmit",
+    reValidateMode: "onBlur",
     defaultValues: { name: "", email: "", mobile: "", password: "" },
   });
 
   const schoolForm = useForm<SchoolFormValues, unknown, SchoolFormOutput>({
     resolver: zodResolver(schoolSchema),
+    mode: "onSubmit",
+    reValidateMode: "onBlur",
     defaultValues: {
       schoolName: "",
       address: "",
@@ -880,20 +903,20 @@ function AdminRegisterSchoolPageInner() {
       setCompletedThrough((prev) => Math.max(prev, 3));
       setSchoolCode(saved.schoolCode || schoolCode);
       skipNextDraftRef.current = true;
-      const restored = saved.students.map((s) => normalizeStudent(s));
-      setStudents(
-        ensureStudentsForGrade(
-          withTrailingEmptyRow(restored, activeGrade),
+      setStudents((prev) => {
+        const merged = mergeStudentCodes(prev, saved.students);
+        return ensureStudentsForGrade(
+          merged,
           activeGrade,
           emptyStudent,
           INITIAL_STUDENT_ROWS,
-        ),
-      );
+        );
+      });
       lastDraftPayloadRef.current = JSON.stringify(
-        restored.map((s) => ({
+        saved.students.map((s) => ({
           id: s.id,
           registrationNumber: s.registrationNumber,
-          name: s.name.trim().toUpperCase(),
+          name: (s.name || "").trim().toUpperCase(),
           grade: s.grade,
           section: (s.section || "").trim().toUpperCase(),
           mobile: sanitizeMobileDigits(s.mobile),
@@ -973,17 +996,40 @@ function AdminRegisterSchoolPageInner() {
     return (e: ChangeEvent<HTMLInputElement>) => {
       const next = toTitleCaseInput(e.target.value);
       e.target.value = next;
+      // Avoid validating on each keystroke (red borders while typing).
       if (name in accountForm.getValues()) {
         accountForm.setValue(name as keyof AccountFormValues, next as never, {
           shouldDirty: true,
-          shouldValidate: true,
+          shouldValidate: false,
         });
+        if (accountForm.formState.errors[name as keyof AccountFormValues]) {
+          accountForm.clearErrors(name as keyof AccountFormValues);
+        }
       }
       if (name in schoolForm.getValues()) {
         schoolForm.setValue(name as keyof SchoolFormValues, next as never, {
           shouldDirty: true,
-          shouldValidate: true,
+          shouldValidate: false,
         });
+        if (schoolForm.formState.errors[name as keyof SchoolFormValues]) {
+          schoolForm.clearErrors(name as keyof SchoolFormValues);
+        }
+      }
+    };
+  }
+
+  function clearSchoolFieldError(key: keyof SchoolFormValues) {
+    return () => {
+      if (schoolForm.formState.errors[key]) {
+        schoolForm.clearErrors(key);
+      }
+    };
+  }
+
+  function clearAccountFieldError(key: keyof AccountFormValues) {
+    return () => {
+      if (accountForm.formState.errors[key]) {
+        accountForm.clearErrors(key);
       }
     };
   }
@@ -1571,7 +1617,12 @@ function AdminRegisterSchoolPageInner() {
                   label="Email *"
                   error={accountForm.formState.errors.email?.message}
                 >
-                  <Input type="email" {...accountForm.register("email")} />
+                  <Input
+                    type="email"
+                    {...accountForm.register("email", {
+                      onChange: clearAccountFieldError("email"),
+                    })}
+                  />
                 </Field>
                 <Field
                   label="Mobile number *"
@@ -1583,14 +1634,21 @@ function AdminRegisterSchoolPageInner() {
                     autoComplete="tel"
                     maxLength={10}
                     placeholder="10-digit mobile number"
-                    {...accountForm.register("mobile")}
+                    {...accountForm.register("mobile", {
+                      onChange: clearAccountFieldError("mobile"),
+                    })}
                   />
                 </Field>
                 <Field
                   label="Password *"
                   error={accountForm.formState.errors.password?.message}
                 >
-                  <Input type="text" {...accountForm.register("password")} />
+                  <Input
+                    type="text"
+                    {...accountForm.register("password", {
+                      onChange: clearAccountFieldError("password"),
+                    })}
+                  />
                 </Field>
               </div>
               <div className="flex justify-end">
@@ -1636,7 +1694,11 @@ function AdminRegisterSchoolPageInner() {
               error={schoolForm.formState.errors.address?.message}
               className="sm:col-span-2"
             >
-              <Input {...schoolForm.register("address")} />
+              <Input
+                {...schoolForm.register("address", {
+                  onChange: clearSchoolFieldError("address"),
+                })}
+              />
             </Field>
             <Field label="City *" error={schoolForm.formState.errors.city?.message}>
               <Input
@@ -1669,7 +1731,11 @@ function AdminRegisterSchoolPageInner() {
               label="Pin code *"
               error={schoolForm.formState.errors.pincode?.message}
             >
-              <Input {...schoolForm.register("pincode")} />
+              <Input
+                {...schoolForm.register("pincode", {
+                  onChange: clearSchoolFieldError("pincode"),
+                })}
+              />
             </Field>
             <Field label="Country *">
               <select
@@ -1733,7 +1799,9 @@ function AdminRegisterSchoolPageInner() {
                 inputMode="numeric"
                 maxLength={10}
                 placeholder="10-digit mobile"
-                {...schoolForm.register("schoolMobile")}
+                {...schoolForm.register("schoolMobile", {
+                  onChange: clearSchoolFieldError("schoolMobile"),
+                })}
               />
             </Field>
             <Field label="STD code">
@@ -1746,7 +1814,12 @@ function AdminRegisterSchoolPageInner() {
               label="School email *"
               error={schoolForm.formState.errors.email?.message}
             >
-              <Input type="email" {...schoolForm.register("email")} />
+              <Input
+                type="email"
+                {...schoolForm.register("email", {
+                  onChange: clearSchoolFieldError("email"),
+                })}
+              />
             </Field>
           </div>
 
@@ -1772,7 +1845,9 @@ function AdminRegisterSchoolPageInner() {
                   inputMode="numeric"
                   maxLength={10}
                   placeholder="10-digit mobile"
-                  {...schoolForm.register("principalMobile")}
+                  {...schoolForm.register("principalMobile", {
+                    onChange: clearSchoolFieldError("principalMobile"),
+                  })}
                 />
               </Field>
               <Field
@@ -1781,7 +1856,9 @@ function AdminRegisterSchoolPageInner() {
               >
                 <Input
                   type="email"
-                  {...schoolForm.register("principalEmail")}
+                  {...schoolForm.register("principalEmail", {
+                    onChange: clearSchoolFieldError("principalEmail"),
+                  })}
                 />
               </Field>
             </div>
@@ -1811,7 +1888,9 @@ function AdminRegisterSchoolPageInner() {
                   inputMode="numeric"
                   maxLength={10}
                   placeholder="10-digit mobile"
-                  {...schoolForm.register("phone")}
+                  {...schoolForm.register("phone", {
+                    onChange: clearSchoolFieldError("phone"),
+                  })}
                 />
               </Field>
               <Field
@@ -1820,7 +1899,9 @@ function AdminRegisterSchoolPageInner() {
               >
                 <Input
                   type="email"
-                  {...schoolForm.register("inchargeEmail")}
+                  {...schoolForm.register("inchargeEmail", {
+                    onChange: clearSchoolFieldError("inchargeEmail"),
+                  })}
                 />
               </Field>
             </div>
@@ -1971,7 +2052,7 @@ function AdminRegisterSchoolPageInner() {
                           aria-invalid={Boolean(rowError)}
                           className="h-9 w-full uppercase"
                           onChange={(e) => {
-                            const next = e.target.value.toUpperCase();
+                            const nextName = e.target.value.toUpperCase();
                             setError("");
                             setImportStatus("idle");
                             setImportFileName("");
@@ -1981,18 +2062,30 @@ function AdminRegisterSchoolPageInner() {
                               delete copy[absoluteIndex];
                               return copy;
                             });
-                            setStudents((prev) =>
-                              ensureStudentsForGrade(
-                                prev.map((row, i) =>
-                                  i === absoluteIndex
-                                    ? { ...row, name: next, grade: activeGrade }
-                                    : row,
-                                ),
+                            setStudents((prev) => {
+                              const next = prev.map((row, i) =>
+                                i === absoluteIndex
+                                  ? {
+                                      ...row,
+                                      name: nextName,
+                                      grade: activeGrade,
+                                    }
+                                  : row,
+                              );
+                              const ofGrade = next.filter(
+                                (s) => s.grade === activeGrade,
+                              );
+                              const needsEnsure =
+                                ofGrade.length < INITIAL_STUDENT_ROWS ||
+                                Boolean(ofGrade[ofGrade.length - 1]?.name.trim());
+                              if (!needsEnsure) return next;
+                              return ensureStudentsForGrade(
+                                next,
                                 activeGrade,
                                 emptyStudent,
                                 INITIAL_STUDENT_ROWS,
-                              ),
-                            );
+                              );
+                            });
                           }}
                         />
                         {rowError ? (
@@ -2202,8 +2295,7 @@ function AdminRegisterSchoolPageInner() {
         <div className="space-y-4 rounded-2xl border border-border bg-white p-5">
           <h2 className="text-lg font-bold text-brand">Confirm & approve</h2>
           <p className="text-sm text-muted">
-            Review the fee summary, then register and approve this school
-            immediately. No payment details are required for admin registration.
+            Review the fee, then register and approve this school.
           </p>
           <PaymentFeeSummary
             variant="admin"

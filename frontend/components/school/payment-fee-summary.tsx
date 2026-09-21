@@ -45,7 +45,7 @@ export function PaymentFeeSummary({
 }: {
   students: StudentLike[];
   className?: string;
-  /** School portal asks to pay; admin registration asks to verify payment. */
+  /** School portal asks to pay; admin registration only shows the fee. */
   variant?: "school" | "admin";
 }) {
   const summary = summarizeRegistrationFee(students);
@@ -121,25 +121,15 @@ export function PaymentFeeSummary({
           </table>
         </div>
       </div>
-      <p className="rounded-xl border border-accent/40 bg-accent-soft px-4 py-3 text-sm leading-relaxed text-brand">
-        {variant === "admin" ? (
-          <>
-            Verify payment of{" "}
-            <span className="font-bold">
-              ₹{summary.totalFee.toLocaleString("en-IN")}
-            </span>{" "}
-            and submit the payment details below.
-          </>
-        ) : (
-          <>
-            Please complete payment of{" "}
-            <span className="font-bold">
-              ₹{summary.totalFee.toLocaleString("en-IN")}
-            </span>{" "}
-            through UPI or bank transfer, then submit the payment details below.
-          </>
-        )}
-      </p>
+      {variant === "school" ? (
+        <p className="rounded-xl border border-accent/40 bg-accent-soft px-4 py-3 text-sm leading-relaxed text-brand">
+          Please complete payment of{" "}
+          <span className="font-bold">
+            ₹{summary.totalFee.toLocaleString("en-IN")}
+          </span>{" "}
+          through UPI or bank transfer, then submit the payment details below.
+        </p>
+      ) : null}
     </div>
   );
 }
