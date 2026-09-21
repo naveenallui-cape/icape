@@ -18,7 +18,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest, getApiUrl, type ApiResponse } from "@/lib/api";
 import { saveStudentsChunked, type RegistrationStudent, MAX_STUDENTS_PER_REGISTRATION } from "@/lib/school-api";
-import { computeRegistrationFee, type PaymentMethod } from "@/lib/payment-details";
+import { computeRegistrationFee, FEE_PER_STUDENT_PER_OLYMPIAD, type PaymentMethod } from "@/lib/payment-details";
 import { toTitleCaseInput } from "@/lib/title-case";
 import { cn } from "@/lib/utils";
 import { PaymentFeeSummary } from "@/components/school/payment-fee-summary";
@@ -144,6 +144,7 @@ type RegistrationPayload = {
   inchargeEmail?: string;
   gradeCounts?: Record<string, number>;
   feeExpected: number;
+  concessionFeePerStudent?: number | null;
   status: string;
   currentStep?: number;
   students: StudentRow[];
@@ -537,6 +538,8 @@ function AdminRegisterSchoolPageInner() {
     {},
   );
   const [done, setDone] = useState<RegistrationPayload | null>(null);
+  const [concessionFeeInput, setConcessionFeeInput] = useState("");
+  const [concessionFeeError, setConcessionFeeError] = useState("");
   const [completedThrough, setCompletedThrough] = useState(0);
   const [draftStatus, setDraftStatus] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -620,9 +623,26 @@ function AdminRegisterSchoolPageInner() {
     },
   });
 
+  const concessionFeePerStudent = useMemo(() => {
+    const raw = concessionFeeInput.trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1 || n > FEE_PER_STUDENT_PER_OLYMPIAD) {
+      return null;
+    }
+    return n;
+  }, [concessionFeeInput]);
+
+  const feePerSlot =
+    concessionFeePerStudent ?? FEE_PER_STUDENT_PER_OLYMPIAD;
+
   const feeExpected = useMemo(
-    () => computeRegistrationFee(students.filter((s) => s.name.trim())),
-    [students],
+    () =>
+      computeRegistrationFee(
+        students.filter((s) => s.name.trim()),
+        feePerSlot,
+      ),
+    [students, feePerSlot],
   );
 
   useEffect(() => {
@@ -779,6 +799,12 @@ function AdminRegisterSchoolPageInner() {
           )
         : [],
     );
+    setConcessionFeeInput(
+      reg.concessionFeePerStudent != null && reg.concessionFeePerStudent > 0
+        ? String(reg.concessionFeePerStudent)
+        : "",
+    );
+    setConcessionFeeError("");
     skipNextDraftRef.current = true;
     lastDraftPayloadRef.current = JSON.stringify(
       named.map((s) => ({
@@ -1298,6 +1324,24 @@ function AdminRegisterSchoolPageInner() {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
+
+    const concessionRaw = concessionFeeInput.trim();
+    if (concessionRaw) {
+      const n = Number(concessionRaw);
+      if (
+        !Number.isInteger(n) ||
+        n < 1 ||
+        n > FEE_PER_STUDENT_PER_OLYMPIAD
+      ) {
+        setConcessionFeeError(
+          `Enter a whole amount from ₹1 to ₹${FEE_PER_STUDENT_PER_OLYMPIAD}`,
+        );
+        setError("Fix the concession fee before registering.");
+        return;
+      }
+    }
+    setConcessionFeeError("");
+
     setSaving(true);
     const res = await apiRequest<RegistrationPayload>(
       `/admin/school-registrations/accounts/${accountId}/step/3`,
@@ -1305,6 +1349,9 @@ function AdminRegisterSchoolPageInner() {
         method: "PUT",
         body: {
           approve: true,
+          concessionFeePerStudent: concessionRaw
+            ? Number(concessionRaw)
+            : null,
         },
       },
     );
@@ -2300,7 +2347,48 @@ function AdminRegisterSchoolPageInner() {
           <PaymentFeeSummary
             variant="admin"
             students={students.filter((s) => s.name.trim())}
+            feePerSlot={feePerSlot}
           />
+          <div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <label
+                htmlFor="admin-concession-fee"
+                className={cn(
+                  "shrink-0 text-sm font-semibold",
+                  concessionFeeError ? "text-red-600" : "text-brand",
+                )}
+              >
+                Concession fee per student (₹)
+              </label>
+              <Input
+                id="admin-concession-fee"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={3}
+                value={concessionFeeInput}
+                aria-invalid={Boolean(concessionFeeError)}
+                className={cn(
+                  "w-24",
+                  concessionFeeError &&
+                    "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/25",
+                )}
+                onChange={(e) => {
+                  setConcessionFeeInput(e.target.value.replace(/[^\d]/g, ""));
+                  setConcessionFeeError("");
+                }}
+              />
+              <p className="text-xs text-muted">
+                Enter the approved discounted fee. Leave blank for ₹
+                {FEE_PER_STUDENT_PER_OLYMPIAD}.
+              </p>
+            </div>
+            {concessionFeeError ? (
+              <p className="mt-1 text-xs font-medium text-red-600">
+                {concessionFeeError}
+              </p>
+            ) : null}
+          </div>
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
