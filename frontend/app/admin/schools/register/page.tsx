@@ -17,6 +17,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest, getApiUrl, type ApiResponse } from "@/lib/api";
+import { reportFromHttpStatus, reportServerUnreachable } from "@/lib/server-status";
 import { saveStudentsChunked, type RegistrationStudent, MAX_STUDENTS_PER_REGISTRATION } from "@/lib/school-api";
 import { computeRegistrationFee, FEE_PER_STUDENT_PER_OLYMPIAD, type PaymentMethod } from "@/lib/payment-details";
 import { toTitleCaseInput } from "@/lib/title-case";
@@ -472,9 +473,10 @@ async function importAdminStudentsExcel(
 > {
   const apiUrl = getApiUrl();
   if (!apiUrl) {
+    reportServerUnreachable();
     return {
       success: false,
-      message: "API URL is not configured",
+      message: "Server unreachable. The API address is not configured.",
       networkError: true,
     };
   }
@@ -502,18 +504,24 @@ async function importAdminStudentsExcel(
       }>;
       errors: string[];
     }>;
+    reportFromHttpStatus(response.status);
     if (!response.ok) {
       return {
         success: false,
         message: data.message || "Import failed",
         status: response.status,
+        networkError:
+          response.status === 502 ||
+          response.status === 503 ||
+          response.status === 504,
       };
     }
     return data;
   } catch {
+    reportServerUnreachable();
     return {
       success: false,
-      message: "Cannot reach API",
+      message: "Server unreachable. Check your connection and try again.",
       networkError: true,
     };
   }

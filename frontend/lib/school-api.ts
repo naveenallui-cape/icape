@@ -1,4 +1,5 @@
 import { apiRequest, getApiUrl, type ApiResponse } from "@/lib/api";
+import { reportFromHttpStatus, reportServerUnreachable } from "@/lib/server-status";
 import type { PaymentMethod } from "@/lib/payment-details";
 
 export type SchoolAccount = {
@@ -290,9 +291,10 @@ export async function importStudentsExcel(
 > {
   const apiUrl = getApiUrl();
   if (!apiUrl) {
+    reportServerUnreachable();
     return {
       success: false,
-      message: "API URL is not configured",
+      message: "Server unreachable. The API address is not configured.",
       networkError: true,
     };
   }
@@ -311,18 +313,24 @@ export async function importStudentsExcel(
       students: RegistrationStudent[];
       errors: string[];
     }>;
+    reportFromHttpStatus(response.status);
     if (!response.ok) {
       return {
         success: false,
         message: data.message || "Import failed",
         status: response.status,
+        networkError:
+          response.status === 502 ||
+          response.status === 503 ||
+          response.status === 504,
       };
     }
     return data;
   } catch {
+    reportServerUnreachable();
     return {
       success: false,
-      message: "Cannot reach API",
+      message: "Server unreachable. Check your connection and try again.",
       networkError: true,
     };
   }
@@ -333,9 +341,10 @@ export async function uploadPaymentProofFile(file: File): Promise<
 > {
   const apiUrl = getApiUrl();
   if (!apiUrl) {
+    reportServerUnreachable();
     return {
       success: false,
-      message: "API URL is not configured",
+      message: "Server unreachable. The API address is not configured.",
       networkError: true,
     };
   }
@@ -382,19 +391,26 @@ export async function uploadPaymentProofFile(file: File): Promise<
       /* non-JSON body */
     }
 
+    reportFromHttpStatus(response.status);
     if (!response.ok) {
+      const gatewayDown =
+        response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504;
       return {
         success: false,
-        message:
-          ("message" in data && typeof data.message === "string"
-            ? data.message
-            : null) ||
-          (response.status === 401
-            ? "Please log in again to upload payment proof"
-            : response.status === 413
-              ? "Proof file is too large (max 8 MB)"
-              : "Upload failed"),
+        message: gatewayDown
+          ? "Server unreachable. Check your connection and try again."
+          : ("message" in data && typeof data.message === "string"
+              ? data.message
+              : null) ||
+            (response.status === 401
+              ? "Please log in again to upload payment proof"
+              : response.status === 413
+                ? "Proof file is too large (max 8 MB)"
+                : "Upload failed"),
         status: response.status,
+        networkError: gatewayDown,
       };
     }
 
@@ -408,9 +424,10 @@ export async function uploadPaymentProofFile(file: File): Promise<
 
     return data;
   } catch {
+    reportServerUnreachable();
     return {
       success: false,
-      message: "Cannot reach API. Is the backend running?",
+      message: "Server unreachable. Check your connection and try again.",
       networkError: true,
     };
   }

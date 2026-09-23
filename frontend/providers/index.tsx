@@ -1,5 +1,6 @@
 "use client";
 
+import { ServerStatusProvider } from "@/components/server-status-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import type { ReactNode } from "react";
 
@@ -8,5 +9,9 @@ type ProvidersProps = {
 };
 
 export function Providers({ children }: ProvidersProps) {
-  return <QueryProvider>{children}</QueryProvider>;
+  return (
+    <QueryProvider>
+      <ServerStatusProvider>{children}</ServerStatusProvider>
+    </QueryProvider>
+  );
 }
