@@ -335,6 +335,30 @@ export const schoolRegistrationService = {
     return serializeRegistration(reg);
   },
 
+  /** Read-only: never creates a draft (portal poll / load). */
+  async getMine(accountId: string) {
+    const reg = await loadRegistration(accountId, CURRENT_OLYMPIAD_YEAR);
+    if (!reg) {
+      throw new AppError("No registration for this Olympiad Year", 404);
+    }
+    if (!reg.schoolCode?.trim()) {
+      const schoolCode = await allocateSchoolCode(
+        OLYMPIAD_YEAR_META.code,
+        CURRENT_OLYMPIAD_YEAR,
+      );
+      const updated = await prisma.schoolRegistration.update({
+        where: { id: reg.id },
+        data: { schoolCode },
+        include: {
+          students: { orderBy: [{ grade: "asc" }, { name: "asc" }] },
+          payment: true,
+        },
+      });
+      return serializeRegistration(updated);
+    }
+    return serializeRegistration(reg);
+  },
+
   async saveStep1(
     accountId: string,
     data: {

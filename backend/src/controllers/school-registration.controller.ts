@@ -53,8 +53,18 @@ export const schoolRegistrationController = {
   async getMine(req: Request, res: Response, next: NextFunction) {
     try {
       const school = getRequestSchool(req);
-      const data = await schoolRegistrationService.getOrCreateDraft(school.sub);
+      const data = await schoolRegistrationService.getMine(school.sub);
       res.json({ success: true, message: "OK", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async startMine(req: Request, res: Response, next: NextFunction) {
+    try {
+      const school = getRequestSchool(req);
+      const data = await schoolRegistrationService.getOrCreateDraft(school.sub);
+      res.status(201).json({ success: true, message: "Registration started", data });
     } catch (err) {
       next(err);
     }
@@ -448,8 +458,16 @@ export const adminSchoolRegistrationController = {
     try {
       const accountId = String(req.params.id);
       const account = await schoolAuthService.me(accountId);
-      const registration =
-        await schoolRegistrationService.getOrCreateDraft(accountId);
+      const forceCreate =
+        req.query.create === "1" ||
+        req.query.create === "true" ||
+        req.query.create === "yes";
+      const registration = forceCreate
+        ? await schoolRegistrationService.getOrCreateDraft(accountId)
+        : await schoolRegistrationService.getMine(accountId).catch((err) => {
+            if (err instanceof AppError && err.statusCode === 404) return null;
+            throw err;
+          });
       res.json({
         success: true,
         message: "OK",

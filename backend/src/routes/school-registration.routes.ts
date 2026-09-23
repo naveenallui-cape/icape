@@ -18,6 +18,10 @@ schoolRegistrationRouter.get(
 schoolRegistrationRouter.use(requireSchool);
 
 schoolRegistrationRouter.get("/", schoolRegistrationController.getMine);
+schoolRegistrationRouter.post(
+  "/start",
+  schoolRegistrationController.startMine,
+);
 schoolRegistrationRouter.put("/step/1", schoolRegistrationController.saveStep1);
 schoolRegistrationRouter.put("/step/2", schoolRegistrationController.saveStep2);
 schoolRegistrationRouter.get(

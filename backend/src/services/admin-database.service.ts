@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../middleware/error.middleware";
+import { resultCache } from "../lib/cache";
 
 /** Prisma client delegate keys (camelCase) for every schema model. */
 const MODEL_DELEGATES = {
@@ -221,7 +222,7 @@ function mapPrismaError(err: unknown): never {
 
   if (isForeignKeyRestrictError(err)) {
     throw new AppError(
-      "Cannot delete: related records still reference this row. Remove or reassign those first (e.g. delete Students before School).",
+      "Cannot delete: related records still reference this row even after cascade cleanup.",
       409,
     );
   }
@@ -252,6 +253,168 @@ function mapPrismaError(err: unknown): never {
 
   throw new AppError("Database error", 500);
 }
+
+/**
+ * Admin Database is supreme: wipe dependents first so FK Restrict never blocks
+ * an intentional admin delete.
+ */
+async function wipeResultsSchoolsByCodes(
+  tx: Prisma.TransactionClient,
+  schoolCodes: string[],
+) {
+  const codes = [
+    ...new Set(
+      schoolCodes.map((c) => c.trim()).filter((c) => c.length > 0),
+    ),
+  ];
+  if (!codes.length) return;
+
+  const schools = await tx.school.findMany({
+    where: { schoolCode: { in: codes } },
+    select: { id: true },
+  });
+  const schoolIds = schools.map((s) => s.id);
+  if (!schoolIds.length) return;
+
+  await tx.result.deleteMany({ where: { schoolId: { in: schoolIds } } });
+  await tx.student.deleteMany({ where: { schoolId: { in: schoolIds } } });
+  await tx.school.deleteMany({ where: { id: { in: schoolIds } } });
+}
+
+async function wipeSchoolAccountFully(
+  tx: Prisma.TransactionClient,
+  accountId: string,
+) {
+  const regs = await tx.schoolRegistration.findMany({
+    where: { schoolAccountId: accountId },
+    select: { id: true, schoolCode: true },
+  });
+  const regIds = regs.map((r) => r.id);
+  const schoolCodes = regs.map((r) => r.schoolCode);
+
+  if (regIds.length) {
+    await tx.registrationPayment.deleteMany({
+      where: { schoolRegistrationId: { in: regIds } },
+    });
+    await tx.registrationStudent.deleteMany({
+      where: { schoolRegistrationId: { in: regIds } },
+    });
+    await tx.schoolRegistration.deleteMany({
+      where: { id: { in: regIds } },
+    });
+  }
+
+  await wipeResultsSchoolsByCodes(tx, schoolCodes);
+
+  await tx.passwordResetToken.deleteMany({
+    where: { schoolAccountId: accountId },
+  });
+  await tx.schoolAccount.delete({ where: { id: accountId } });
+}
+
+async function forceDeleteRow(modelName: ModelName, id: string) {
+  await prisma.$transaction(async (tx) => {
+    switch (modelName) {
+      case "School": {
+        await tx.result.deleteMany({ where: { schoolId: id } });
+        await tx.student.deleteMany({ where: { schoolId: id } });
+        await tx.school.delete({ where: { id } });
+        break;
+      }
+      case "Student": {
+        await tx.result.deleteMany({ where: { studentId: id } });
+        await tx.student.delete({ where: { id } });
+        break;
+      }
+      case "Olympiad": {
+        await tx.result.deleteMany({ where: { olympiadId: id } });
+        const uploads = await tx.resultUpload.findMany({
+          where: { olympiadId: id },
+          select: { id: true },
+        });
+        const uploadIds = uploads.map((u) => u.id);
+        if (uploadIds.length) {
+          await tx.resultUploadError.deleteMany({
+            where: { uploadId: { in: uploadIds } },
+          });
+          await tx.resultUpload.deleteMany({ where: { id: { in: uploadIds } } });
+        }
+        await tx.olympiad.delete({ where: { id } });
+        break;
+      }
+      case "Admin": {
+        const adminCount = await tx.admin.count();
+        if (adminCount <= 1) {
+          throw new AppError("Cannot delete the last admin account", 409);
+        }
+        const uploads = await tx.resultUpload.findMany({
+          where: { uploadedById: id },
+          select: { id: true },
+        });
+        const uploadIds = uploads.map((u) => u.id);
+        if (uploadIds.length) {
+          await tx.resultUploadError.deleteMany({
+            where: { uploadId: { in: uploadIds } },
+          });
+          await tx.resultUpload.deleteMany({ where: { id: { in: uploadIds } } });
+        }
+        await tx.registrationPayment.updateMany({
+          where: { reviewedByAdminId: id },
+          data: { reviewedByAdminId: null },
+        });
+        await tx.studentExportJob.deleteMany({ where: { createdById: id } });
+        await tx.admin.delete({ where: { id } });
+        break;
+      }
+      case "ResultUpload": {
+        await tx.resultUploadError.deleteMany({ where: { uploadId: id } });
+        await tx.resultUpload.delete({ where: { id } });
+        break;
+      }
+      case "SchoolAccount": {
+        await wipeSchoolAccountFully(tx, id);
+        break;
+      }
+      case "SchoolRegistration": {
+        const reg = await tx.schoolRegistration.findUnique({
+          where: { id },
+          select: { schoolAccountId: true },
+        });
+        if (!reg) throw new AppError("Record not found", 404);
+        // Wipe the whole school: login, all year registrations, results schools.
+        await wipeSchoolAccountFully(tx, reg.schoolAccountId);
+        break;
+      }
+      case "ResultPublication": {
+        throw new AppError(
+          "ResultPublication is a system row — edit published instead of deleting",
+          409,
+        );
+      }
+      default: {
+        const key = MODEL_DELEGATES[modelName];
+        const delegate = (
+          tx as unknown as Record<
+            string,
+            { delete: (args: object) => Promise<unknown> }
+          >
+        )[key];
+        await delegate.delete({ where: { id } });
+        break;
+      }
+    }
+  });
+}
+
+const RESULT_CACHE_MODELS = new Set<ModelName>([
+  "School",
+  "Student",
+  "Result",
+  "Olympiad",
+  "ResultPublication",
+  "SchoolRegistration",
+  "SchoolAccount",
+]);
 
 function buildSearchWhere(
   modelName: ModelName,
@@ -428,11 +591,37 @@ export const adminDatabaseService = {
     if (!isModelName(modelParam)) {
       throw new AppError(`Unknown model: ${modelParam}`, 404);
     }
+    if (!id?.trim()) {
+      throw new AppError("Record id is required", 400);
+    }
     const idName = idFieldName(modelParam);
     const delegate = getDelegate(modelParam);
     try {
-      await delegate.delete({ where: { [idName]: id } });
-      return { model: modelParam, id, deleted: true };
+      const existing = await delegate.findUnique({
+        where: { [idName]: id },
+      });
+      if (!existing) throw new AppError("Record not found", 404);
+
+      // Supreme admin override: cascade dependents, ignore normal Restrict FKs.
+      await forceDeleteRow(modelParam, id);
+
+      const stillThere = await delegate.findUnique({
+        where: { [idName]: id },
+      });
+      if (stillThere) {
+        throw new AppError("Delete did not persist — record still exists", 500);
+      }
+
+      if (RESULT_CACHE_MODELS.has(modelParam)) {
+        await resultCache.bumpVersion();
+      }
+
+      return {
+        model: modelParam,
+        id,
+        deleted: true,
+        cascaded: true,
+      };
     } catch (err) {
       mapPrismaError(err);
     }
