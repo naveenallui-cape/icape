@@ -842,11 +842,26 @@ function AdminRegisterSchoolPageInner() {
     setError("");
     const res = await apiRequest<{
       account: { id: string; email: string; name: string };
-      registration: RegistrationPayload;
+      registration: RegistrationPayload | null;
     }>(`/admin/school-registrations/accounts/${id}`);
     if (!res.success || !res.data) {
       setError(res.message || "Could not resume this registration");
       setLoadingResume(false);
+      return;
+    }
+    if (!res.data.registration) {
+      // Deleted or never started — do not auto-create; first Step 1 save will.
+      setAccountId(res.data.account.id);
+      setAccountEmail(res.data.account.email);
+      setAccountName(res.data.account.name);
+      setSchoolCode("");
+      setCompletedThrough(0);
+      setStudents([]);
+      setStep(1);
+      setDone(null);
+      setError("");
+      setLoadingResume(false);
+      rememberAccount(res.data.account.id);
       return;
     }
     hydrateFromRegistration(res.data.account, res.data.registration);

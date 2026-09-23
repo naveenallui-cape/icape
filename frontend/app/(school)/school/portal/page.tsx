@@ -28,6 +28,7 @@ import {
   saveSchoolStep1,
   saveSchoolStep2,
   saveSchoolStep3,
+  startMyRegistration,
   checkPaymentReference,
   studentTemplateUrl,
   uploadPaymentProofFile,
@@ -375,6 +376,7 @@ function SchoolPortalPage() {
   const tab = searchParams.get("tab") || "registration";
   const [loading, setLoading] = useState(true);
   const [reg, setReg] = useState<SchoolRegistration | null>(null);
+  const [startingRegistration, setStartingRegistration] = useState(false);
   const [step, setStep] = useState(1);
   const [resubmitAfterReject, setResubmitAfterReject] = useState(false);
   const [students, setStudents] = useState<StudentDraft[]>([]);
@@ -561,6 +563,13 @@ function SchoolPortalPage() {
           router.replace("/school/login");
           return;
         }
+        // Admin deleted registration (or never started) — stay logged in, no auto-create.
+        if (regRes.status === 404) {
+          setReg(null);
+          setError("");
+          setLoading(false);
+          return;
+        }
         setError(
           regRes.networkError
             ? "Cannot reach server. Check your connection and refresh."
@@ -570,7 +579,7 @@ function SchoolPortalPage() {
         return;
       }
       if (!regRes.data) {
-        setError("Failed to load registration");
+        setReg(null);
         setLoading(false);
         return;
       }
@@ -594,6 +603,14 @@ function SchoolPortalPage() {
       if (!regRes.success || !regRes.data) {
         if (!regRes.success && regRes.status === 401 && !regRes.networkError) {
           router.replace("/school/login");
+          return;
+        }
+        // Registration removed (e.g. admin deleted) — clear local draft.
+        if (!regRes.success && regRes.status === 404 && regRef.current) {
+          setReg(null);
+          setStudents([]);
+          setStep(1);
+          setError("");
         }
         return;
       }
@@ -1365,6 +1382,52 @@ function SchoolPortalPage() {
         <div className="h-10 w-64 animate-pulse rounded-lg bg-white/80" />
         <div className="h-28 animate-pulse rounded-2xl border border-border bg-white" />
         <div className="h-72 animate-pulse rounded-2xl border border-border bg-white" />
+      </div>
+    );
+  }
+
+  async function startRegistration() {
+    setStartingRegistration(true);
+    setError("");
+    const res = await startMyRegistration();
+    setStartingRegistration(false);
+    if (!res.success || !res.data) {
+      setError(res.message || "Could not start registration");
+      return;
+    }
+    applyRegistration(res.data, { syncStep: true });
+  }
+
+  // No registration row (never started, or admin deleted it) — do not auto-create.
+  if (!reg) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-brand">Registration</h1>
+          <p className="mt-1 text-sm text-muted">
+            No registration for this Olympiad Year yet.
+          </p>
+        </div>
+        {error ? (
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        ) : null}
+        <div className="rounded-2xl border border-border bg-white px-5 py-8 shadow-sm">
+          <p className="text-sm text-muted">
+            Start a new registration when you are ready to submit school details
+            and students. Opening the portal alone will not create one.
+          </p>
+          <Button
+            type="button"
+            variant="accent"
+            className="mt-4"
+            disabled={startingRegistration}
+            onClick={() => void startRegistration()}
+          >
+            {startingRegistration ? "Starting…" : "Start registration"}
+          </Button>
+        </div>
       </div>
     );
   }

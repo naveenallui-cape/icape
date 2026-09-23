@@ -49,6 +49,7 @@ export async function apiRequest<T = unknown>(
   try {
     const response = await fetch(url, {
       ...rest,
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         ...headers,

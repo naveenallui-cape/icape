@@ -210,6 +210,7 @@ export default function AdminDatabasePage() {
   const modelsQuery = useQuery({
     queryKey: ["admin-database", "models"],
     queryFn: fetchDbModels,
+    staleTime: 0,
   });
 
   useEffect(() => {
@@ -240,6 +241,8 @@ export default function AdminDatabasePage() {
         q: debouncedSearch || undefined,
       }),
     enabled: Boolean(selectedModel),
+    // Always treat list data as stale so post-delete refetches are trusted.
+    staleTime: 0,
     placeholderData: keepPreviousData,
   });
 
@@ -252,9 +255,18 @@ export default function AdminDatabasePage() {
     [modelsQuery.data, selectedModel],
   );
 
+  async function refreshAdminDatabase() {
+    await queryClient.invalidateQueries({
+      queryKey: ["admin-database"],
+      refetchType: "active",
+    });
+  }
+
   const saveMutation = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
       if (!selectedModel) throw new Error("No model selected");
+      // Drop in-flight list fetches so a slow GET cannot overwrite this write.
+      await queryClient.cancelQueries({ queryKey: ["admin-database"] });
       if (editor?.mode === "edit") {
         const id = idOfRow(editor.row, fields);
         return updateDbRow(selectedModel, id, payload);
@@ -264,7 +276,7 @@ export default function AdminDatabasePage() {
     onSuccess: async () => {
       setEditor(null);
       setFormError("");
-      await queryClient.invalidateQueries({ queryKey: ["admin-database"] });
+      await refreshAdminDatabase();
     },
     onError: (err: Error) => {
       setFormError(err.message || "Save failed");
@@ -274,11 +286,57 @@ export default function AdminDatabasePage() {
   const deleteMutation = useMutation({
     mutationFn: async (row: Record<string, unknown>) => {
       if (!selectedModel) throw new Error("No model selected");
-      return deleteDbRow(selectedModel, idOfRow(row, fields));
+      const id = idOfRow(row, fields);
+      if (!id) throw new Error("Missing record id");
+      // Cancel in-flight GETs first — a late response can put the deleted
+      // row back into the cache and make it look like the delete failed.
+      await queryClient.cancelQueries({ queryKey: ["admin-database"] });
+      return deleteDbRow(selectedModel, id);
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, row) => {
+      const deletedId = idOfRow(row, fields);
+      const model = selectedModel;
+
+      // Optimistically remove from every cached page for this model.
+      queryClient.setQueriesData<Awaited<ReturnType<typeof fetchDbRows>>>(
+        { queryKey: ["admin-database", "rows", model] },
+        (prev) => {
+          if (!prev) return prev;
+          const nextRows = prev.rows.filter(
+            (r) => idOfRow(r, prev.fields) !== deletedId,
+          );
+          if (nextRows.length === prev.rows.length) return prev;
+          return {
+            ...prev,
+            rows: nextRows,
+            pagination: {
+              ...prev.pagination,
+              total: Math.max(0, prev.pagination.total - 1),
+              totalPages: Math.max(
+                1,
+                Math.ceil(
+                  Math.max(0, prev.pagination.total - 1) / prev.pagination.limit,
+                ),
+              ),
+            },
+          };
+        },
+      );
+
+      queryClient.setQueryData<Awaited<ReturnType<typeof fetchDbModels>>>(
+        ["admin-database", "models"],
+        (prev) => {
+          if (!prev || !model) return prev;
+          return prev.map((m) =>
+            m.name === model
+              ? { ...m, count: Math.max(0, m.count - 1) }
+              : m,
+          );
+        },
+      );
+
       setDeleteTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["admin-database"] });
+      await refreshAdminDatabase();
     },
   });
 
@@ -290,7 +348,8 @@ export default function AdminDatabasePage() {
           Database
         </h1>
         <p className="mt-1 text-sm text-muted">
-          Browse and edit live database records (admin only).
+          Supreme admin console — browse, edit, and force-delete any record
+          (related rows cascade). Changes are permanent.
         </p>
       </div>
 
@@ -503,13 +562,19 @@ export default function AdminDatabasePage() {
           aria-modal="true"
         >
           <div className="w-full max-w-md rounded-2xl border border-border bg-white p-5 shadow-lg">
-            <h2 className="text-base font-bold text-brand">Delete record?</h2>
+            <h2 className="text-base font-bold text-brand">
+              Force delete record?
+            </h2>
             <p className="mt-2 text-sm text-muted">
-              This permanently deletes{" "}
+              Admin Database is supreme. This permanently deletes{" "}
               <span className="font-mono font-semibold text-brand">
                 {selectedModel}/{idOfRow(deleteTarget, fields)}
               </span>
-              . This cannot be undone.
+              {selectedModel === "SchoolRegistration" ||
+              selectedModel === "SchoolAccount"
+                ? " and wipes that school completely (login, all registrations, students, payments, and matching results schools)."
+                : " and any related child records."}{" "}
+              This cannot be undone.
             </p>
             {deleteMutation.isError ? (
               <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

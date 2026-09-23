@@ -122,6 +122,13 @@ export async function fetchMyRegistration() {
   return apiRequest<SchoolRegistration>("/school-registration");
 }
 
+/** Explicitly create a draft — portal GET never auto-creates. */
+export async function startMyRegistration() {
+  return apiRequest<SchoolRegistration>("/school-registration/start", {
+    method: "POST",
+  });
+}
+
 export async function fetchMyStudents(input?: {
   olympiad?: string;
   grade?: string;
