@@ -25,7 +25,7 @@ export function GallerySection() {
         </div>
 
         <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-5">
-          {galleryImages.map((image) => (
+          {galleryImages.slice(0, 5).map((image) => (
             <Link
               key={image.src}
               href="/gallery"

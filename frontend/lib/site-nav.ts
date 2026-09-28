@@ -141,43 +141,31 @@ export const homeCards: HomeCard[] = [
 
 export const galleryImages = [
   {
-    src: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&h=600&fit=crop&q=80",
-    alt: "Students in a classroom learning together",
+    src: "/images/gallery/awards-group-1.jpg",
+    alt: "Students with i-CAPE certificates and medals alongside teachers",
   },
   {
-    src: "https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=800&h=600&fit=crop&q=80",
-    alt: "School classroom ready for learning",
+    src: "/images/gallery/awards-group-2.jpg",
+    alt: "i-CAPE award winners holding certificates at the school awards event",
   },
   {
-    src: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&h=600&fit=crop&q=80",
-    alt: "Young learners in a study group",
+    src: "/images/gallery/awards-group-3.jpg",
+    alt: "Group of students with i-CAPE certificates of achievement",
   },
   {
-    src: "https://images.unsplash.com/photo-1571260899304-425eee4c7efc?w=800&h=600&fit=crop&q=80",
-    alt: "School students raising hands in class",
+    src: "/images/gallery/medal-winners.jpg",
+    alt: "i-CAPE medal winners with certificates on stage with guests",
   },
   {
-    src: "https://images.unsplash.com/photo-1588072432836-e10032774350?w=800&h=600&fit=crop&q=80",
-    alt: "Teacher guiding students during an exam prep session",
+    src: "/images/gallery/medal-presentation-1.jpg",
+    alt: "Guest presenting an i-CAPE medal to a student",
   },
   {
-    src: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=800&h=600&fit=crop&q=80",
-    alt: "Students celebrating academic achievement",
+    src: "/images/gallery/medal-presentation-2.jpg",
+    alt: "Student receiving an i-CAPE medal and certificate",
   },
   {
-    src: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800&h=600&fit=crop&q=80",
-    alt: "Stack of educational books for olympiad prep",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&h=600&fit=crop&q=80",
-    alt: "Team discussing academic plans",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&h=600&fit=crop&q=80",
-    alt: "Open books in a library study space",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&h=600&fit=crop&q=80",
-    alt: "Children learning with colorful classroom materials",
+    src: "/images/gallery/certificate-presentation.jpg",
+    alt: "Student receiving an i-CAPE certificate at the awards ceremony",
   },
 ];
