@@ -301,6 +301,17 @@ export type AdminDashboardData = {
     isoApproved: number;
     ieoApproved: number;
   };
+  byGrade?: Array<{
+    grade: number;
+    students: number;
+    imo: number;
+    iso: number;
+    ieo: number;
+    approvedStudents: number;
+    approvedImo: number;
+    approvedIso: number;
+    approvedIeo: number;
+  }>;
   payments: {
     pending: number;
     verified: number;

@@ -180,6 +180,111 @@ function OlympiadBar({
   );
 }
 
+const DASHBOARD_GRADES = [3, 4, 5, 6, 7, 8, 9, 10] as const;
+
+function GradeWiseSection({
+  rows,
+}: {
+  rows: NonNullable<AdminDashboardData["byGrade"]>;
+}) {
+  const byGrade = new Map(rows.map((r) => [n(r.grade), r]));
+  const data = DASHBOARD_GRADES.map((grade) => {
+    const r = byGrade.get(grade);
+    return {
+      grade,
+      students: n(r?.approvedStudents),
+      imo: n(r?.approvedImo),
+      iso: n(r?.approvedIso),
+      ieo: n(r?.approvedIeo),
+    };
+  });
+  const totals = data.reduce(
+    (acc, r) => ({
+      students: acc.students + r.students,
+      imo: acc.imo + r.imo,
+      iso: acc.iso + r.iso,
+      ieo: acc.ieo + r.ieo,
+    }),
+    { students: 0, imo: 0, iso: 0, ieo: 0 },
+  );
+  const fmt = (v: number) => v.toLocaleString("en-IN");
+
+  return (
+    <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-brand">Class-wise entries</h2>
+          <p className="mt-1 text-sm text-muted">
+            Approved IMO, ISO and IEO counts per class for Olympiad Year{" "}
+            {OLYMPIAD_YEAR_LABEL}
+          </p>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[32rem] border-separate border-spacing-0 text-sm">
+          <thead>
+            <tr className="text-left text-xs font-semibold uppercase tracking-wide text-muted [&>th]:border-b [&>th]:border-border">
+              <th className="px-3 py-2">Class</th>
+              <th className="px-3 py-2 text-center">Students</th>
+              <th className="px-3 py-2 text-center">IMO</th>
+              <th className="px-3 py-2 text-center">ISO</th>
+              <th className="px-3 py-2 text-center">IEO</th>
+              <th className="px-3 py-2 text-center">Total entries</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((r) => (
+              <tr
+                key={r.grade}
+                className="[&>td]:border-b [&>td]:border-border/70"
+              >
+                <td className="px-3 py-2 font-semibold text-brand">
+                  Class {r.grade}
+                </td>
+                <td className="px-3 py-2 text-center tabular-nums text-muted">
+                  {fmt(r.students)}
+                </td>
+                <td className="px-3 py-2 text-center tabular-nums text-brand">
+                  {fmt(r.imo)}
+                </td>
+                <td className="px-3 py-2 text-center tabular-nums text-brand">
+                  {fmt(r.iso)}
+                </td>
+                <td className="px-3 py-2 text-center tabular-nums text-brand">
+                  {fmt(r.ieo)}
+                </td>
+                <td className="px-3 py-2 text-center font-semibold tabular-nums text-brand">
+                  {fmt(r.imo + r.iso + r.ieo)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="font-bold text-brand [&>td]:bg-brand-soft/40 [&>td:first-child]:rounded-l-lg [&>td:last-child]:rounded-r-lg">
+              <td className="px-3 py-2.5">Total</td>
+              <td className="px-3 py-2.5 text-center tabular-nums">
+                {fmt(totals.students)}
+              </td>
+              <td className="px-3 py-2.5 text-center tabular-nums">
+                {fmt(totals.imo)}
+              </td>
+              <td className="px-3 py-2.5 text-center tabular-nums">
+                {fmt(totals.iso)}
+              </td>
+              <td className="px-3 py-2.5 text-center tabular-nums">
+                {fmt(totals.ieo)}
+              </td>
+              <td className="px-3 py-2.5 text-center tabular-nums">
+                {fmt(totals.imo + totals.iso + totals.ieo)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function DashboardSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
@@ -435,6 +540,10 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
         </section>
       </div>
 
+      <GradeWiseSection
+        rows={Array.isArray(data.byGrade) ? data.byGrade : []}
+      />
+
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-2">
@@ -525,43 +634,6 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
           )}
         </section>
       </div>
-
-      <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-brand">Quick links</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            {
-              title: "Schools",
-              text: "Approved school list",
-              href: "/admin/schools",
-            },
-            {
-              title: "Students",
-              text: "Named students & exports",
-              href: "/admin/students",
-            },
-            {
-              title: "Upload results",
-              text: "Excel or manual entry",
-              href: "/admin/results/upload",
-            },
-            {
-              title: "Results",
-              text: "Search and manage results",
-              href: "/admin/results",
-            },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-xl border border-border bg-slate-50/70 p-4 transition hover:border-accent/40 hover:bg-white"
-            >
-              <p className="font-bold text-brand">{item.title}</p>
-              <p className="mt-1 text-sm text-muted">{item.text}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }
