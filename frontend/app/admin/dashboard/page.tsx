@@ -339,7 +339,12 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
   const pipelineTotal =
     schools.draft + schools.underReview + schools.approved + schools.rejected ||
     1;
-  const olympiadMax = Math.max(students.imo, students.iso, students.ieo, 1);
+  const olympiadMax = Math.max(
+    students.imoApproved,
+    students.isoApproved,
+    students.ieoApproved,
+    1,
+  );
   const totalOlympiads =
     students.imoApproved + students.isoApproved + students.ieoApproved;
   const needsAttention = payments.awaitingReview > 0 || schools.rejected > 0;
@@ -483,7 +488,7 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
             <div>
               <h2 className="text-lg font-bold text-brand">Olympiad entries</h2>
               <p className="mt-1 text-sm text-muted">
-                Subject selections across all saved student lists
+                Subject selections for approved registrations
               </p>
             </div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand">
@@ -494,19 +499,19 @@ function DashboardBody({ data }: { data: AdminDashboardData }) {
           <div className="space-y-4">
             <OlympiadBar
               code="IMO"
-              count={students.imo}
+              count={students.imoApproved}
               max={olympiadMax}
               className="bg-brand"
             />
             <OlympiadBar
               code="ISO"
-              count={students.iso}
+              count={students.isoApproved}
               max={olympiadMax}
               className="bg-sky-600"
             />
             <OlympiadBar
               code="IEO"
-              count={students.ieo}
+              count={students.ieoApproved}
               max={olympiadMax}
               className="bg-accent"
             />
