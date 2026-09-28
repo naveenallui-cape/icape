@@ -1832,6 +1832,7 @@ export const schoolRegistrationService = {
       pendingPayments,
       attentionRows,
       recentApproved,
+      gradeRows,
     ] = await Promise.all([
       prisma.schoolAccount.count(),
       prisma.schoolRegistration.groupBy({
@@ -1922,6 +1923,35 @@ export const schoolRegistrationService = {
           updatedAt: true,
         },
       }),
+      prisma.$queryRaw<
+        Array<{
+          grade: number;
+          students: bigint;
+          imo: bigint;
+          iso: bigint;
+          ieo: bigint;
+          approvedStudents: bigint;
+          approvedImo: bigint;
+          approvedIso: bigint;
+          approvedIeo: bigint;
+        }>
+      >`
+        SELECT
+          rs.grade AS grade,
+          COUNT(*) AS "students",
+          COUNT(*) FILTER (WHERE rs.imo) AS "imo",
+          COUNT(*) FILTER (WHERE rs.iso) AS "iso",
+          COUNT(*) FILTER (WHERE rs.ieo) AS "ieo",
+          COUNT(*) FILTER (WHERE sr.status = 'APPROVED'::"RegistrationStatus") AS "approvedStudents",
+          COUNT(*) FILTER (WHERE rs.imo AND sr.status = 'APPROVED'::"RegistrationStatus") AS "approvedImo",
+          COUNT(*) FILTER (WHERE rs.iso AND sr.status = 'APPROVED'::"RegistrationStatus") AS "approvedIso",
+          COUNT(*) FILTER (WHERE rs.ieo AND sr.status = 'APPROVED'::"RegistrationStatus") AS "approvedIeo"
+        FROM "RegistrationStudent" rs
+        JOIN "SchoolRegistration" sr ON sr.id = rs."schoolRegistrationId"
+        WHERE sr."olympiadYear" = ${CURRENT_OLYMPIAD_YEAR}
+        GROUP BY rs.grade
+        ORDER BY rs.grade ASC
+      `,
     ]);
 
     const countByStatus = (status: RegistrationStatus) =>
@@ -1973,6 +2003,17 @@ export const schoolRegistrationService = {
         isoApproved: approvedGroup?._sum.isoCount ?? 0,
         ieoApproved: approvedGroup?._sum.ieoCount ?? 0,
       },
+      byGrade: gradeRows.map((r) => ({
+        grade: Number(r.grade),
+        students: Number(r.students),
+        imo: Number(r.imo),
+        iso: Number(r.iso),
+        ieo: Number(r.ieo),
+        approvedStudents: Number(r.approvedStudents),
+        approvedImo: Number(r.approvedImo),
+        approvedIso: Number(r.approvedIso),
+        approvedIeo: Number(r.approvedIeo),
+      })),
       payments: {
         pending: pendingPay.count,
         verified: verifiedPay.count,
