@@ -1425,7 +1425,7 @@ function AdminRegisterSchoolPageInner() {
             href="/admin/schools"
             className={buttonVariants({ variant: "accent" })}
           >
-            Back to schools
+            Back
           </Link>
           <Link
             href="/admin/students"

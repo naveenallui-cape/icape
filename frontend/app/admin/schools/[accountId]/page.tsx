@@ -74,7 +74,7 @@ export default function AdminSchoolDetailPage() {
   if (detailQuery.isError || !detailQuery.data) {
     return (
       <div className="space-y-4">
-        <AdminBackButton href="/admin/schools" label="Back to schools" />
+        <AdminBackButton href="/admin/schools" label="Back" />
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {detailQuery.error instanceof Error
             ? detailQuery.error.message
@@ -89,7 +89,7 @@ export default function AdminSchoolDetailPage() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <AdminBackButton href="/admin/schools" label="Back to schools" />
+        <AdminBackButton href="/admin/schools" label="Back" />
         <Button
           type="button"
           variant="outline"
