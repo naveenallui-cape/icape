@@ -1,13 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, KeyRound, X } from "lucide-react";
+import { KeyRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/api";
+import { AdminBackButton } from "@/components/admin/admin-back-button";
 import {
   SchoolAccountDetailsView,
   type SchoolAccountDetail,
@@ -74,13 +74,7 @@ export default function AdminSchoolDetailPage() {
   if (detailQuery.isError || !detailQuery.data) {
     return (
       <div className="space-y-4">
-        <Link
-          href="/admin/schools"
-          className="inline-flex items-center gap-1 text-sm font-semibold text-muted hover:text-brand"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          Back to schools
-        </Link>
+        <AdminBackButton href="/admin/schools" label="Back to schools" />
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {detailQuery.error instanceof Error
             ? detailQuery.error.message
@@ -95,13 +89,7 @@ export default function AdminSchoolDetailPage() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link
-          href="/admin/schools"
-          className="inline-flex items-center gap-1 text-sm font-semibold text-muted hover:text-brand"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          Back to schools
-        </Link>
+        <AdminBackButton href="/admin/schools" label="Back to schools" />
         <Button
           type="button"
           variant="outline"
